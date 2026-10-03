@@ -1,6 +1,6 @@
 # FlowPlane Documentation
 
-FlowPlane is an early-stage open-source platform for orchestrating and executing data workflows across heterogeneous execution environments.
+FlowPlane is an early-stage open-source control plane for heterogeneous data-pipeline platforms.
 
 This index covers the public documentation currently available in the repository. Additional documents should be added incrementally as product scope, architectural decisions, and implemented behavior become established.
 
@@ -10,7 +10,16 @@ This index covers the public documentation currently available in the repository
 2. Accepted Architecture Decision Records (ADRs) are authoritative for the specific decisions they record.
 3. Architecture documents describe the current accepted architecture and must remain consistent with accepted ADRs.
 4. Product summaries, guides, and reference documents explain narrower subjects without introducing architectural decisions.
-5. Recommendations, assumptions, examples, and open questions are not accepted decisions.
+5. Recommendations, assumptions, examples, future candidates, and open questions are not accepted decisions.
+
+The public derived documents also reflect clarified current product direction. They do not replace the master architecture document, create an ADR, or finalize the MVP scope.
+
+## Current direction
+
+- SSIS is the first data-pipeline provider and the current integration focus; it is not the platform foundation.
+- Apache Airflow, dbt, and other data-pipeline platforms are future provider candidates, not implementation commitments.
+- The intended MVP includes read-only SSIS Control Flow monitoring and exploration using React Flow. React Flow is not the canonical backend workflow model.
+- Keycloak is the intended MVP identity provider through standard OpenID Connect (OIDC); detailed authentication and authorization architecture remains unresolved.
 
 ## Documentation map
 
