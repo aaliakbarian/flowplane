@@ -52,49 +52,68 @@ The baseline below is a planning recommendation as of October 2026. Repository m
 | Frontend | [React 19](https://react.dev/versions) with TypeScript | React 19 is the current stable major. Use strict TypeScript and pin exact packages in the frontend manifest and lockfile. |
 | Type system | [TypeScript 6](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html) | Current stable starting point for a new project; exact compiler patch and explicit compiler options belong in repository configuration. |
 | Graph presentation | `@xyflow/react` / React Flow | Required for the read-only Control Flow view. Pin the compatible release only when the frontend is scaffolded; it must not define backend domain storage. |
-| Frontend build | [Vite 8](https://vite.dev/releases) as the starting recommendation | Vite is a current, supported, React-compatible build tool. Confirm Node/runtime compatibility and pin a supported release during the frontend gate. This is not a permanent architectural commitment. |
+| Frontend build and development | [Vite 8](https://vite.dev/releases) as the starting recommendation | Vite provides React/TypeScript compilation, production builds, and the normal development server with HMR. It runs with Node.js and the selected package manager inside the containerized frontend service rather than directly on the WSL host. Confirm runtime compatibility and pin supported releases during the frontend gate. |
+| Browser-facing web server | Nginx | Nginx is the recommended browser-facing entry point and reverse proxy in development and production-style environments. In production-style images it serves the compiled frontend and does not require Node.js. Pin the exact tested Nginx image during Milestone 0. |
 | Identity | [Keycloak 26](https://www.keycloak.org/docs/) through standard OIDC/OAuth2 | Keycloak is the intended MVP identity provider. Pin one tested stable image, realm bootstrap approach, and upgrade procedure during Milestone 0; do not couple application logic to Keycloak-specific APIs. |
-| Development environment | Linux/WSL2, Docker, and Docker Compose | Provide one documented containerized path for contributors while keeping the external SSIS environment outside the Compose stack. |
+| Development environment | WSL2 Ubuntu 24.04 with VS Code/WSL, a host-installed .NET 10 SDK, and Docker Engine/CLI/Compose installed directly in WSL | Backend editing, debugging, restore, build, and test use the WSL-installed SDK; frontend tooling and product dependencies remain containerized. Docker Desktop, a VS Code Dev Container, and a dedicated workspace container are not required. |
 
 No frontend component library is selected merely for completeness. Kafka, Redis, RabbitMQ, Temporal, Kubernetes, and similar infrastructure require a demonstrated MVP need and a separate review before introduction.
 
 ## 4. Initial implementation topology
 
-**Technical recommendation:** Start the MVP with one backend deployable that hosts API, scheduling, reconciliation, and background responsibilities behind internal boundaries.
+**Technical recommendation:** Start the MVP with Nginx as the browser-facing web server/reverse proxy and one backend deployable that hosts API, scheduling, reconciliation, and background responsibilities behind internal boundaries.
 
 ```text
-FlowPlane Web
-      |
-      v
-FlowPlane Backend
-      |
-      +---- PostgreSQL
-      |
-      +---- Keycloak / OIDC
-      |
-      +---- SSIS Provider
-                  |
-                  v
-           external SSISDB
-                  |
-                  v
-           external SSIS runtime
+Browser
+   |
+   v
+Nginx
+   |
+   +-- /api/* --> FlowPlane Backend
+   |                  |
+   |                  +---- PostgreSQL
+   |                  |
+   |                  +---- Keycloak / OIDC
+   |                  |
+   |                  +---- SSIS Provider
+   |                              |
+   |                              v
+   |                       external SSISDB
+   |                              |
+   |                              v
+   |                       external SSIS runtime
+   |
+   +-- /* ------> frontend
 ```
 
-For development:
+For normal development:
 
 ```text
-Docker Compose
+WSL2 Ubuntu 24.04
 |
-+-- FlowPlane Web
-+-- FlowPlane Backend
-+-- PostgreSQL
-+-- Keycloak
++-- VS Code / WSL
++-- Git / SSH
++-- .NET 10 SDK
++-- Docker Engine / CLI / Compose
+|
++-- ~/source_codes/flowplane
+|
++-- Docker Compose
+    |
+    +-- Nginx (browser-facing entry point)
+    +-- frontend-dev (Node.js / Vite)
+    +-- FlowPlane Backend runtime
+    +-- PostgreSQL
+    +-- Keycloak
 
 External
 |
 +-- SQL Server / SSISDB / SSIS
 ```
+
+The browser accesses FlowPlane through Nginx rather than connecting directly to the Vite service. Nginx routes `/api/*` to the backend and frontend traffic to the appropriate development or production target, preserving one browser origin across both environments.
+
+There is no workspace/Dev Container service and no Docker Desktop dependency. The repository remains directly in the WSL Linux filesystem.
 
 This is the simplest starting topology, not a permanent modular-monolith, microservice, or process-topology decision. Scheduling, reconciliation, and provider work must have internal boundaries that allow later process separation. Correctness must never depend on the backend process remaining alive: durable FlowPlane state lives in PostgreSQL, provider-native state remains in SSISDB, and recovery uses reconciliation.
 
@@ -136,40 +155,148 @@ This is an implementation-gate recommendation, not a final project list. Merge p
 
 The frontend should organize shared product views separately from capability/provider-aware views. SSIS extensions belong behind provider/capability components rather than widespread `provider == ssis` conditionals.
 
-## 6. Containerized development baseline
+## 6. Development environment baseline
 
-A contributor using WSL2 Ubuntu should eventually be able to run a small documented command set and obtain:
+### Primary WSL development environment
 
-- the FlowPlane frontend;
-- the FlowPlane backend;
-- PostgreSQL with migrations/bootstrap applied;
-- Keycloak with a development realm/client bootstrap;
-- health and dependency-readiness results.
+The primary supported contributor workflow uses:
 
-SSIS and SQL Server do not belong in the required FlowPlane Compose stack. Development configuration must instead accept an externally reachable SQL Server/SSISDB endpoint.
+- WSL2 Ubuntu 24.04;
+- the repository stored directly in the WSL Linux filesystem;
+- VS Code connected through the WSL extension;
+- Git and SSH available directly in WSL;
+- Docker Engine, Docker CLI, and Docker Compose installed directly in WSL;
+- the .NET 10 SDK installed directly in WSL; and
+- C# tooling/C# Dev Kit operating in the VS Code WSL environment.
 
-The development baseline must:
+Docker Desktop is not required. Do not introduce a VS Code Dev Container or a dedicated workspace container for the primary workflow.
+
+### Backend development workflow
+
+Backend contributors use the WSL-installed .NET 10 SDK for:
+
+- `dotnet restore`;
+- `dotnet build`;
+- `dotnet test`;
+- debugging;
+- solution and project management; and
+- C# language tooling.
+
+This host-based SDK path is intentional because it provides the strongest backend editing, debugging, and test experience in the supported WSL workflow. Milestone 0 must pin the expected SDK through repository configuration such as `global.json`.
+
+The backend must also retain a containerized build/runtime path. A contributor must be able to:
+
+1. build and test the backend directly from the WSL repository with the installed .NET SDK;
+2. build the backend container image; and
+3. run the backend through the Compose stack.
+
+The WSL SDK path is the primary backend development loop; the containerized path provides deployment and reproducibility verification.
+
+### Source persistence
+
+The WSL repository is the durable source working tree:
+
+```text
+~/source_codes/flowplane
+        |
+        +-- edited directly by VS Code / Codex / Superpowers
+        |
+        +-- bind-mounted into frontend/backend containers as required
+```
+
+Source must never exist only in a container writable layer. Removing or rebuilding any FlowPlane container must not remove uncommitted source changes.
+
+### Containerized product and runtime dependencies
+
+Docker Compose keeps these services containerized:
+
+- Nginx;
+- the frontend Node.js/Vite development service;
+- the FlowPlane backend runtime when exercising the containerized stack;
+- PostgreSQL; and
+- Keycloak.
+
+SQL Server, SSISDB, and SSIS remain external. Development configuration must accept an externally reachable SQL Server/SSISDB endpoint.
+
+The supported workflow does not require host installations of PostgreSQL, Keycloak, Node.js, npm/pnpm or another frontend package manager, TypeScript, Vite, or frontend test runners. It must:
 
 - use pinned images and dependency versions;
 - avoid committed real credentials;
 - support environment variables, development-secret references, example configuration, and ignored local overrides;
+- route browser traffic through Nginx rather than requiring direct browser access to the Vite service;
 - distinguish process liveness from dependency readiness;
 - wait or retry safely for PostgreSQL and Keycloak readiness; and
 - preserve PostgreSQL data across ordinary FlowPlane container restarts.
 
-No Compose file is defined by this document.
+### Normal frontend development
+
+Vite remains the frontend build and development tool. During normal development, the containerized frontend service runs the Vite development server for React/TypeScript compilation and HMR, while Nginx remains the only browser-facing entry point:
+
+```text
+Browser
+   |
+   v
+Nginx
+   |
+   +-- /api/* --> FlowPlane Backend
+   |
+   +-- /* ------> Vite development server
+```
+
+Frontend source remains directly in the WSL repository and is bind-mounted into the frontend development container. VS Code edits the source through the WSL extension; Node.js, the selected package manager, TypeScript, Vite, and frontend test tooling run inside the container.
+
+The Nginx development route must proxy ordinary Vite requests and the WebSocket behavior required for HMR. Browser navigation, frontend requests, and backend API requests therefore use one origin in the normal supported workflow. The browser must not need to access the Vite service directly.
+
+### Production-style frontend
+
+Production-style frontend deployment uses a multi-stage container build:
+
+```text
+React / TypeScript source
+          |
+          v
+Vite production build
+          |
+          v
+        dist/
+          |
+          v
+        Nginx
+```
+
+The build stage contains Node.js, the selected package manager, TypeScript, and Vite. The final frontend runtime image contains Nginx and the compiled static assets and does not require Node.js. Nginx serves the SPA, proxies `/api/*` to the backend, and falls back to `index.html` for direct client-side routes.
+
+Milestone 0 must provide a production-style verification path that builds the frontend, serves `dist/` through Nginx, routes `/api/*` to the backend, and verifies direct SPA routes and same-origin frontend/API behavior. The Vite development server must not be used as a production server.
+
+### Optional high-parity development mode
+
+A later troubleshooting mode may use:
+
+```text
+vite build --watch
+        |
+        v
+      dist/
+        |
+        v
+      Nginx
+```
+
+This mode can help isolate production-serving behavior, but it is not the default development workflow because it lacks normal Vite HMR. Vite and Nginx are complementary: Vite provides compilation/build tooling and the optional development server; Nginx provides static serving and reverse proxying.
+
+No `global.json`, Dockerfile, Compose file, Nginx configuration, or application implementation is created or defined by this document.
 
 ## 7. Development CI
 
 Repository-development CI is distinct from FlowPlane's optional product-level CI/CD Integration family. GitHub Actions may build and test this repository without becoming a runtime dependency or product integration.
 
-An initial repository pipeline should eventually cover:
+An initial repository pipeline should eventually reproduce the pinned SDK and containerized toolchain expectations while covering:
 
-- backend restore and build;
+- backend restore and build with the pinned .NET 10 SDK;
 - backend unit tests;
-- frontend dependency installation from a lockfile, type checking, build, and tests;
+- frontend dependency installation from a lockfile, type checking, build, and tests through the containerized frontend toolchain;
 - formatting and lint checks;
-- container build verification;
+- backend and production-style frontend container build verification;
 - migration/bootstrap verification against PostgreSQL; and
 - Markdown and relative/external link checks where practical.
 
@@ -189,39 +316,69 @@ Create only the foundation required to deliver Slice 1 without constructing a ge
 ### Task list
 
 1. Scaffold the minimal backend solution/projects and frontend application.
-2. Establish dependency-direction checks or conventions that keep SSIS out of the provider-independent domain.
-3. Add minimal multi-stage Dockerfiles and a development Compose skeleton for web, backend, PostgreSQL, and Keycloak.
-4. Establish environment-specific configuration, ignored local overrides, and development-secret handling.
-5. Add PostgreSQL connectivity and the selected migration mechanism with an empty/baseline migration path.
-6. Configure minimal Keycloak realm/client bootstrap and standards-based OIDC validation.
-7. Add backend liveness/readiness endpoints and structured application logging.
-8. Add baseline backend/frontend unit-test runners and clean-checkout development documentation.
-9. Establish the initial repository CI checks described in section 7, without SSIS becoming a boot prerequisite.
+2. Pin the expected .NET 10 SDK through `global.json` or equivalent repository configuration.
+3. Verify the backend restore/build/test and debugging workflow with the WSL-installed .NET SDK.
+4. Establish dependency-direction checks or conventions that keep SSIS out of the provider-independent domain.
+5. Add the backend containerized build/runtime path.
+6. Add the containerized Node.js/Vite frontend development service with the WSL source tree bind-mounted into it.
+7. Add a minimal multi-stage frontend container path in which Vite produces `dist/` and the final runtime uses Nginx without Node.js.
+8. Configure Nginx as the browser-facing entry point: `/api/*` routes to the backend, normal development frontend traffic routes to Vite with HMR support, and production-style frontend traffic is served from `dist/` with SPA fallback.
+9. Add the Compose services for Nginx, frontend development, backend runtime, PostgreSQL, and Keycloak without adding a workspace container.
+10. Establish environment-specific configuration, ignored local overrides, and development-secret handling.
+11. Add PostgreSQL connectivity and the selected migration mechanism with an empty/baseline migration path.
+12. Configure minimal Keycloak realm/client bootstrap and standards-based OIDC validation.
+13. Add backend liveness/readiness endpoints and structured application logging.
+14. Add baseline backend/frontend unit-test runners and clean-checkout development documentation for the supported WSL workflow.
+15. Establish the initial repository CI checks described in section 7, without SSIS becoming a boot prerequisite.
 
 ### Conceptually affected areas
 
 - `src/backend/*`
 - `src/frontend/*`
 - `tests/unit/*` and baseline integration-test infrastructure
-- `deploy/compose/*`
+- repository SDK pinning such as `global.json`
+- `deploy/compose/*` and browser-facing Nginx configuration
 - repository dependency manifests, lockfiles, and contributor documentation
 
 ### RED/GREEN verification
 
-- **RED:** A clean checkout has no reproducible build, test, OIDC, health, or container startup path.
-- **GREEN:** The documented clean-checkout commands restore/build/test both applications, start the four Compose services, apply/bootstrap PostgreSQL, validate minimal OIDC configuration, and return healthy backend status.
-- Restart the FlowPlane web/backend containers and confirm PostgreSQL state remains.
+- **RED:** A clean WSL checkout has no verified host-SDK build/test path, containerized frontend/backend runtime path, OIDC/health path, or reproducible Compose startup.
+- **GREEN:** On WSL2 Ubuntu 24.04, `dotnet --info` resolves the repository-pinned .NET 10 SDK.
+- Run `dotnet restore`, `dotnet build`, and `dotnet test` successfully from the WSL repository.
+- Build the backend container image successfully and run the backend through Compose.
+- Run frontend install, type-check, production build, and tests through its containerized toolchain without host Node.js.
+- Verify Nginx is the browser-facing development entry point, routes `/api/*` to the backend, and proxies frontend and HMR/WebSocket traffic to the containerized Vite development server.
+- Execute the production-style Vite build, serve `dist/` through Nginx, verify a direct SPA route falls back to `index.html`, and verify frontend/API same-origin behavior.
+- Start PostgreSQL and Keycloak through Compose and validate minimal OIDC configuration and backend health.
+- Remove and rebuild application containers and confirm the WSL source tree, including uncommitted changes, remains intact.
+- Restart the application containers and confirm PostgreSQL development state remains.
 - Start the stack without SSIS configuration and confirm FlowPlane still boots.
+- Complete the workflow without Docker Desktop, a VS Code Dev Container, or a workspace container.
 
 ### Exit criteria
 
 - The repository builds from a clean checkout and tests execute.
-- Frontend and backend start successfully.
+- The expected .NET 10 SDK is repository-pinned and resolves through `dotnet --info` in WSL.
+- Backend restore, build, test, and debugging use the WSL-installed .NET SDK successfully.
+- The backend container image builds and the backend runs through Compose.
+- Frontend development runs with containerized Node.js/Vite tooling; no host Node.js installation is required.
+- Frontend source is edited in the WSL repository and bind-mounted into the frontend development container.
+- The browser accesses FlowPlane through Nginx rather than directly through the Vite service.
+- Nginx proxies `/api/*` to the backend.
+- Nginx proxies normal frontend development traffic to Vite with HMR working.
+- The Vite production build succeeds.
+- Production-style Nginx serves the compiled `dist/` assets.
+- Direct SPA routes work through Nginx fallback to `index.html`.
+- The frontend and API operate from one browser origin.
+- The production-style frontend runtime image has no Node.js requirement.
+- Backend and frontend services start successfully.
 - PostgreSQL and Keycloak start through Compose with pinned images.
 - Minimal OIDC authentication/validation works.
 - Backend health reporting works.
+- Rebuilding application containers does not remove source or uncommitted changes from the WSL working tree.
 - Restarting FlowPlane containers does not destroy PostgreSQL state.
 - SSIS is not required merely to boot FlowPlane.
+- Docker Desktop, a VS Code Dev Container, and a workspace container are not required.
 
 Stop foundation work at this point and begin the provider proving path.
 
@@ -844,11 +1001,11 @@ During execution, refine a slice into only as many tasks as are needed to preser
 
 **Goal:** From a clean checkout, run the FlowPlane development stack, authenticate, configure an external SSIS `ProviderInstance`, and discover executable SSIS packages.
 
-This milestone comprises Milestone 0 and Slice 1. Implement it as a short sequence of bounded changes: establish the minimum build/test skeleton, bring up PostgreSQL and Keycloak, prove OIDC and health, then add SSIS connectivity and discovery behind the provider boundary.
+This milestone comprises Milestone 0 and Slice 1. Implement it as a short sequence of bounded changes: pin and verify the WSL .NET 10 SDK workflow, establish containerized backend and frontend paths, bring up the Nginx-fronted Compose stack with PostgreSQL and Keycloak, prove OIDC, HMR, production-style frontend serving, and health, then add SSIS connectivity and discovery behind the provider boundary.
 
 The first coding commit must contain only the minimum development foundation needed for subsequent work. It must not include execution, `Run`/`RunAttempt`, package registration, graph visualization, or scheduling. Later commits in Milestone A may deliver discovery, but execution remains outside the milestone.
 
-**Exit:** The stack starts from a clean checkout, authenticates through Keycloak/OIDC, accepts development configuration for an external SSIS provider instance, connects securely to its SSISDB, and returns structured executable package candidates without registering them automatically.
+**Exit:** The stack starts from a clean checkout, serves frontend and API traffic from one Nginx browser origin in development and production-style verification paths, authenticates through Keycloak/OIDC, accepts development configuration for an external SSIS provider instance, connects securely to its SSISDB, and returns structured executable package candidates without registering them automatically.
 
 ### Milestone B — First durable manual execution
 
@@ -865,7 +1022,8 @@ Resolve these choices explicitly before the affected coding starts. Defaults are
 | Gate | Pragmatic default | Why | Changeability / significance |
 | --- | --- | --- | --- |
 | Backend project/module layout | Begin with the small separation proposed in section 5, combining projects if a boundary has no immediate dependency-enforcement value. | It protects the provider-independent core without front-loading framework structure. | Easy to adjust early; architectural review is required if it changes provider boundaries or deployable/process topology. |
-| Frontend scaffolding and build tool | React 19, TypeScript 6, and Vite 8, with exact supported versions pinned at scaffolding time. | This is a current, direct development baseline without selecting a component library. | Easy to change before UI slices; increasingly costly after build plugins and tests accumulate. |
+| Development environment | VS Code directly in WSL2 Ubuntu 24.04, a host-installed and repository-pinned .NET 10 SDK, and Docker Engine/CLI/Compose directly in WSL; keep Nginx/browser routing, frontend tooling, the containerized backend runtime, PostgreSQL, and Keycloak in Compose. | This gives strong C# editing/debugging/test ergonomics, keeps Node.js and service dependencies off the host, preserves reproducible container verification, keeps source directly accessible to VS Code, Git, Codex, and Superpowers, and requires neither Docker Desktop nor an extra workspace-container layer. | Important for developer experience and reproducibility, but not a permanent production-topology architecture decision. |
+| Frontend scaffolding, build, and serving | React 19, TypeScript 6, and Vite 8 in containerized development/build stages; Nginx as the browser-facing development proxy and production-style static runtime, with exact supported versions pinned at scaffolding time. | Vite supplies compilation, builds, testing integration, and development HMR; Nginx supplies consistent same-origin routing, reverse proxying, SPA fallback, and a Node.js-free runtime image. | Package and image versions are easy to change early; browser routing, HMR proxy behavior, and container-stage boundaries become increasingly costly after deployment and tests depend on them. |
 | PostgreSQL development version | PostgreSQL 18, pinned to a tested minor image and digest when Compose is created. | It is the current supported major baseline and maximizes support runway for a new project. | Major-version compatibility is operationally significant; patch pins are routine maintenance. |
 | Keycloak tested image | Keycloak 26, initially test the current [26.8](https://www.keycloak.org/2026/10/keycloak-2680-released) patch line and pin an exact image/digest. | It provides the intended OIDC identity service while keeping FlowPlane coupled to standards rather than vendor APIs. | Image patches are routine but security-sensitive; dependence on Keycloak-specific APIs would be architecturally significant and is not allowed by this plan. |
 | Migration tooling | Use EF Core migrations if the implementation retains the preferred EF Core persistence direction; keep migrations owned and tested by FlowPlane. | It aligns schema changes with the .NET application while supporting reproducible upgrades. | Tooling is moderately changeable early; migration history and production upgrade policy become costly to replace. No ADR is needed unless this changes a broader persistence decision. |
