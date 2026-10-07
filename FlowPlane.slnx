@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/backend/">
+    <Project Path="src/backend/FlowPlane.Api/FlowPlane.Api.csproj" />
+    <Project Path="src/backend/FlowPlane.Application/FlowPlane.Application.csproj" />
+    <Project Path="src/backend/FlowPlane.Domain/FlowPlane.Domain.csproj" />
+    <Project Path="src/backend/FlowPlane.Infrastructure/FlowPlane.Infrastructure.csproj" />
+    <Project Path="src/backend/FlowPlane.Providers.Ssis/FlowPlane.Providers.Ssis.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+  <Folder Name="/tests/unit/">
+    <Project Path="tests/unit/FlowPlane.Architecture.Tests/FlowPlane.Architecture.Tests.csproj" />
+  </Folder>
+</Solution>
