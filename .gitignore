@@ -10,3 +10,6 @@
 # Frontend dependency and build output
 /src/frontend/node_modules/
 /src/frontend/dist/
+
+# Local development Compose overrides
+/deploy/compose/.env
