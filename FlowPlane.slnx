@@ -8,6 +8,9 @@
     <Project Path="src/backend/FlowPlane.Providers.Ssis/FlowPlane.Providers.Ssis.csproj" />
   </Folder>
   <Folder Name="/tests/" />
+  <Folder Name="/tests/integration/">
+    <Project Path="tests/integration/FlowPlane.Api.Tests/FlowPlane.Api.Tests.csproj" />
+  </Folder>
   <Folder Name="/tests/unit/">
     <Project Path="tests/unit/FlowPlane.Architecture.Tests/FlowPlane.Architecture.Tests.csproj" />
   </Folder>
