@@ -6,3 +6,7 @@
 .vs/
 *.suo
 *.user
+
+# Frontend dependency and build output
+/src/frontend/node_modules/
+/src/frontend/dist/
