@@ -236,10 +236,17 @@ echo "KEYCLOAK_HTTP_STATUS=$keycloak_status"
 
 compose stop postgres keycloak >/dev/null
 test "$(curl --fail --silent --show-error "http://127.0.0.1:$FLOWPLANE_HTTP_PORT/api/health/live")" = Healthy
-test "$(curl --fail --silent --show-error "http://127.0.0.1:$FLOWPLANE_HTTP_PORT/api/health/ready")" = Healthy
+ready_body=$(mktemp /tmp/flowplane-a04-ready-XXXXXX)
+ready_status=$(curl --silent --show-error --output "$ready_body" --write-out '%{http_code}' \
+  "http://127.0.0.1:$FLOWPLANE_HTTP_PORT/api/health/ready")
+test "$ready_status" = 503
+test "$(cat "$ready_body")" = Unhealthy
+rm -f "$ready_body"
 compose start postgres keycloak >/dev/null
 wait_for_healthy postgres
 wait_for_healthy keycloak
+wait_for_healthy backend
+wait_for_healthy nginx
 
 test ! -e "$frontend_source/node_modules"
 
@@ -251,6 +258,7 @@ verified_ownership=$(stat --format '%u:%g' "$frontend_source/src/App.tsx")
 test "$verified_ownership" = "$(id -u):$(id -g)"
 
 echo "FRONTEND_AND_BACKEND_HOST_PORTS=unpublished"
-echo "BACKEND_HEALTH_WITH_POSTGRES_AND_KEYCLOAK_STOPPED=Healthy"
+echo "BACKEND_LIVE_WITH_POSTGRES_AND_KEYCLOAK_STOPPED=Healthy"
+echo "BACKEND_READY_WITH_POSTGRES_AND_KEYCLOAK_STOPPED=Unhealthy"
 echo "FRONTEND_SOURCE_OWNERSHIP=$verified_ownership"
 echo "A-04 development stack verification passed"

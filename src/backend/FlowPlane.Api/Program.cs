@@ -1,3 +1,5 @@
+using FlowPlane.Infrastructure;
+
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
@@ -11,6 +13,7 @@ builder.Logging.AddJsonConsole(options =>
     options.UseUtcTimestamp = true;
 });
 
+builder.Services.AddFlowPlanePostgreSql(builder.Configuration);
 builder.Services
     .AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"]);
@@ -21,7 +24,10 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = registration => registration.Tags.Contains("live")
 });
-app.MapHealthChecks("/health/ready");
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready")
+});
 
 app.Run();
 

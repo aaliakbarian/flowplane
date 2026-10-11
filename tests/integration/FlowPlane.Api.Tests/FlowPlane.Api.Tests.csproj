@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../../src/backend/FlowPlane.Api/FlowPlane.Api.csproj" />
+    <ProjectReference Include="../../../src/backend/FlowPlane.Infrastructure/FlowPlane.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

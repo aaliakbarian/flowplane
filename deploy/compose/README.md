@@ -13,14 +13,39 @@ docker compose --env-file deploy/compose/.env -f deploy/compose/compose.yaml up 
 
 The normal browser entry point is `http://127.0.0.1:${FLOWPLANE_HTTP_PORT}` (port `8080` by default). Nginx strips the `/api` prefix when forwarding API requests, so `/api/health/live` and `/api/health/ready` reach the backend's existing `/health/live` and `/health/ready` endpoints. Frontend HTTP and Vite HMR/WebSocket traffic also traverse Nginx; neither Vite nor the backend publishes a host port.
 
-PostgreSQL is available to WSL at `127.0.0.1:${FLOWPLANE_POSTGRES_PORT}` and stores PostgreSQL 18 data in the named volume mounted at `/var/lib/postgresql`. Keycloak development mode is available at `http://127.0.0.1:${FLOWPLANE_KEYCLOAK_PORT}`. A-04 does not create a realm, client, OIDC configuration, application schema, migration, or backend dependency health check. Backend liveness and readiness intentionally retain their A-02 semantics until those dependencies are integrated in A-05 and A-06.
+PostgreSQL is available to WSL at `127.0.0.1:${FLOWPLANE_POSTGRES_PORT}` and stores PostgreSQL 18 data in the named volume mounted at `/var/lib/postgresql`. Keycloak development mode is available at `http://127.0.0.1:${FLOWPLANE_KEYCLOAK_PORT}`. A-04 does not create a realm, client, OIDC configuration, application schema, migration, or backend dependency health check.
+
+As of A-05, backend readiness includes PostgreSQL connectivity while liveness remains process-only. Compose supplies separate `FlowPlane__PostgreSql__*` configuration values so Npgsql can safely construct the connection string even when credentials contain connection-string delimiters. Credentials are not stored in source configuration or written to logs.
+
+## Apply the PostgreSQL baseline migration
+
+Migrations are explicit and are not applied automatically when the application starts. From the repository root, restore the pinned local EF tool and apply migrations to the WSL-accessible PostgreSQL port:
+
+```sh
+set -a
+. deploy/compose/.env
+set +a
+
+dotnet tool restore
+FlowPlane__PostgreSql__Host=127.0.0.1 \
+FlowPlane__PostgreSql__Port="${FLOWPLANE_POSTGRES_PORT}" \
+FlowPlane__PostgreSql__Database="${FLOWPLANE_POSTGRES_DB}" \
+FlowPlane__PostgreSql__Username="${FLOWPLANE_POSTGRES_USER}" \
+FlowPlane__PostgreSql__Password="${FLOWPLANE_POSTGRES_PASSWORD}" \
+  dotnet tool run dotnet-ef database update \
+  --project src/backend/FlowPlane.Infrastructure/FlowPlane.Infrastructure.csproj \
+  --startup-project src/backend/FlowPlane.Infrastructure/FlowPlane.Infrastructure.csproj
+```
+
+The pinned empty baseline migration creates only EF Core's `__EFMigrationsHistory` table. It deliberately creates no FlowPlane domain tables. Running the update command again is the supported idempotency check for the development bootstrap path.
 
 SQL Server, SSISDB, and SSIS remain external to this stack and are not required for startup.
 
-Run the canonical full-stack verification from the repository root:
+Run the A-04 topology regression and the A-05 PostgreSQL/readiness verification from the repository root:
 
 ```sh
 sh tests/container/a04-development-stack.sh
+sh tests/container/a05-postgresql-baseline.sh
 ```
 
 Stop the stack without deleting PostgreSQL data:

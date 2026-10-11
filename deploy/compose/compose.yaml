@@ -51,6 +51,15 @@ services:
     build:
       context: ../..
       dockerfile: src/backend/FlowPlane.Api/Dockerfile
+    environment:
+      FlowPlane__PostgreSql__Host: postgres
+      FlowPlane__PostgreSql__Port: "5432"
+      FlowPlane__PostgreSql__Database: "${FLOWPLANE_POSTGRES_DB:-flowplane}"
+      FlowPlane__PostgreSql__Username: "${FLOWPLANE_POSTGRES_USER:-flowplane}"
+      FlowPlane__PostgreSql__Password: "${FLOWPLANE_POSTGRES_PASSWORD:-flowplane-local-development-only}"
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test:
         - CMD-SHELL
