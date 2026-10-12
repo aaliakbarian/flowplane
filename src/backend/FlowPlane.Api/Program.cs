@@ -1,3 +1,6 @@
+using System.Security.Claims;
+
+using FlowPlane.Api.Authentication;
 using FlowPlane.Infrastructure;
 
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -14,11 +17,15 @@ builder.Logging.AddJsonConsole(options =>
 });
 
 builder.Services.AddFlowPlanePostgreSql(builder.Configuration);
+builder.Services.AddFlowPlaneAuthentication(builder.Configuration, builder.Environment);
 builder.Services
     .AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"]);
 
 var app = builder.Build();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
@@ -28,6 +35,11 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = registration => registration.Tags.Contains("ready")
 });
+app.MapGet("/me", (ClaimsPrincipal user) => Results.Ok(new
+{
+    Subject = user.FindFirstValue("sub"),
+    Name = user.FindFirstValue("name")
+})).RequireAuthorization();
 
 app.Run();
 

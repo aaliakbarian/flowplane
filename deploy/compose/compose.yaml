@@ -31,6 +31,9 @@ services:
         USER_UID: "${FLOWPLANE_UID:-1000}"
         USER_GID: "${FLOWPLANE_GID:-1000}"
     init: true
+    environment:
+      VITE_FLOWPLANE_OIDC_AUTHORITY: "http://127.0.0.1:${FLOWPLANE_KEYCLOAK_PORT:-8081}/realms/flowplane"
+      VITE_FLOWPLANE_OIDC_CLIENT_ID: flowplane-spa
     volumes:
       - ../../src/frontend:/workspace/src/frontend
     healthcheck:
@@ -52,6 +55,11 @@ services:
       context: ../..
       dockerfile: src/backend/FlowPlane.Api/Dockerfile
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      FlowPlane__Authentication__Issuer: "http://127.0.0.1:${FLOWPLANE_KEYCLOAK_PORT:-8081}/realms/flowplane"
+      FlowPlane__Authentication__MetadataAddress: "http://keycloak:8080/realms/flowplane/.well-known/openid-configuration"
+      FlowPlane__Authentication__Audience: flowplane-api
+      FlowPlane__Authentication__RequireHttpsMetadata: "false"
       FlowPlane__PostgreSql__Host: postgres
       FlowPlane__PostgreSql__Port: "5432"
       FlowPlane__PostgreSql__Database: "${FLOWPLANE_POSTGRES_DB:-flowplane}"
@@ -94,13 +102,22 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.0
-    command: start-dev
+    command:
+      - start-dev
+      - --import-realm
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: "${FLOWPLANE_KEYCLOAK_ADMIN:-admin}"
       KC_BOOTSTRAP_ADMIN_PASSWORD: "${FLOWPLANE_KEYCLOAK_ADMIN_PASSWORD:-keycloak-local-development-only}"
       KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME: "http://127.0.0.1:${FLOWPLANE_KEYCLOAK_PORT:-8081}"
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      FLOWPLANE_BROWSER_ORIGIN: "http://127.0.0.1:${FLOWPLANE_HTTP_PORT:-8080}"
+      FLOWPLANE_KEYCLOAK_TEST_USERNAME: "${FLOWPLANE_KEYCLOAK_TEST_USERNAME:-flowplane-developer}"
+      FLOWPLANE_KEYCLOAK_TEST_PASSWORD: "${FLOWPLANE_KEYCLOAK_TEST_PASSWORD:-flowplane-developer-local-only}"
     ports:
       - "127.0.0.1:${FLOWPLANE_KEYCLOAK_PORT:-8081}:8080"
+    volumes:
+      - ./keycloak/flowplane-realm.json:/opt/keycloak/data/import/flowplane-realm.json:ro
     healthcheck:
       test:
         - CMD-SHELL
