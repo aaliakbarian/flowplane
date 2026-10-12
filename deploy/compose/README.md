@@ -1,6 +1,6 @@
 # FlowPlane development Compose stack
 
-`compose.yaml` is the single supported development Compose file. The name follows the current Docker Compose convention and avoids environment-specific file overlays before they are needed.
+`compose.yaml` is the single supported development Compose file. It provides two alternate frontend serving modes over the same backend, PostgreSQL, and Keycloak foundation: the default Vite/HMR development path and the opt-in production-style static Nginx path.
 
 Copy `.env.example` to the ignored `.env` file, then set `FLOWPLANE_UID` and `FLOWPLANE_GID` to the values reported by `id -u` and `id -g` in WSL. All committed passwords are explicitly local-development-only defaults; replace them in `.env` when needed and never store real credentials in the example file.
 
@@ -14,6 +14,25 @@ docker compose --env-file deploy/compose/.env -f deploy/compose/compose.yaml up 
 The normal browser entry point is `http://127.0.0.1:${FLOWPLANE_HTTP_PORT}` (port `8080` by default). Nginx strips the `/api` prefix when forwarding API requests, so `/api/health/live` and `/api/health/ready` reach the backend's existing `/health/live` and `/health/ready` endpoints. Frontend HTTP and Vite HMR/WebSocket traffic also traverse Nginx; neither Vite nor the backend publishes a host port.
 
 PostgreSQL is available to WSL at `127.0.0.1:${FLOWPLANE_POSTGRES_PORT}` and stores PostgreSQL 18 data in the named volume mounted at `/var/lib/postgresql`. Keycloak development mode is available at `http://127.0.0.1:${FLOWPLANE_KEYCLOAK_PORT}`.
+
+## Production-style frontend path
+
+Stop the default development stack before using the alternate production-style frontend because both modes intentionally use the same FlowPlane browser port. Then start the targeted profiled service from the repository root:
+
+```sh
+docker compose --env-file deploy/compose/.env -f deploy/compose/compose.yaml down
+docker compose --env-file deploy/compose/.env -f deploy/compose/compose.yaml --profile production up --build --wait frontend-production
+```
+
+Targeting `frontend-production` is deliberate. Compose starts only that service and its backend, PostgreSQL, and Keycloak dependencies; it does not start the development `nginx` or `frontend-dev` services, so there is no host-port collision. The browser origin remains `http://127.0.0.1:${FLOWPLANE_HTTP_PORT}` (`8080` by default), while Keycloak remains at port `8081` by default.
+
+The production target builds React/TypeScript with Vite, copies `dist/` into `nginx:1.30.5-alpine3.24`, serves hashed assets directly, falls back to `index.html` for non-API SPA paths such as `/oidc/callback`, and preserves the same `/api/` prefix-stripping proxy behavior as development. It does not contain or run Node.js or Vite. The OIDC authority and public client ID are build-time browser configuration, not secrets; a different public authority requires rebuilding this static image.
+
+Run the bounded production-path verification with:
+
+```sh
+sh tests/container/a07-production-frontend.sh
+```
 
 As of A-05, backend readiness includes PostgreSQL connectivity while liveness remains process-only. Compose supplies separate `FlowPlane__PostgreSql__*` configuration values so Npgsql can safely construct the connection string even when credentials contain connection-string delimiters. Credentials are not stored in source configuration or written to logs.
 

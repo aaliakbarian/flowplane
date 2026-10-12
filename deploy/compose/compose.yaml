@@ -27,6 +27,7 @@ services:
     build:
       context: ../..
       dockerfile: src/frontend/Dockerfile
+      target: development
       args:
         USER_UID: "${FLOWPLANE_UID:-1000}"
         USER_GID: "${FLOWPLANE_GID:-1000}"
@@ -48,6 +49,36 @@ services:
       interval: 5s
       timeout: 3s
       retries: 12
+      start_period: 5s
+
+  frontend-production:
+    profiles:
+      - production
+    build:
+      context: ../..
+      dockerfile: src/frontend/Dockerfile
+      target: production
+      args:
+        USER_UID: "${FLOWPLANE_UID:-1000}"
+        USER_GID: "${FLOWPLANE_GID:-1000}"
+        VITE_FLOWPLANE_OIDC_AUTHORITY: "http://127.0.0.1:${FLOWPLANE_KEYCLOAK_PORT:-8081}/realms/flowplane"
+        VITE_FLOWPLANE_OIDC_CLIENT_ID: flowplane-spa
+    ports:
+      - "127.0.0.1:${FLOWPLANE_HTTP_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          wget -q -O /dev/null http://127.0.0.1/
+          && wget -q -O /dev/null http://127.0.0.1/api/health/ready
+      interval: 10s
+      timeout: 5s
+      retries: 6
       start_period: 5s
 
   backend:
