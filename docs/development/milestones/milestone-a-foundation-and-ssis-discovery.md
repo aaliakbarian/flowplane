@@ -32,15 +32,15 @@ SSIS execution, `Pipeline` registration, `Run`/`RunAttempt`, scheduling, graph v
 
 ## Progress tracking
 
-The task sections are the authoritative detail. This checklist is only progress navigation.
+The task sections are the authoritative detail. This checklist records source-controlled implementation progress for navigation; the GitHub issues and Milestone remain the live review/status tracker.
 
-- [ ] A-01 Minimum development foundation
-- [ ] A-02 Minimal backend host and container path
-- [ ] A-03 Containerized frontend development foundation
-- [ ] A-04 Nginx-fronted development Compose stack
-- [ ] A-05 PostgreSQL baseline and truthful readiness
-- [ ] A-06 Minimal Keycloak/OIDC path
-- [ ] A-07 Production-style frontend path
+- [x] A-01 Minimum development foundation
+- [x] A-02 Minimal backend host and container path
+- [x] A-03 Containerized frontend development foundation
+- [x] A-04 Nginx-fronted development Compose stack
+- [x] A-05 PostgreSQL baseline and truthful readiness
+- [x] A-06 Minimal Keycloak/OIDC path
+- [x] A-07 Production-style frontend path
 - [ ] A-08 Milestone 0 closure
 - [ ] A-09 Minimal provider configuration and secret boundary
 - [ ] A-10 SSIS connectivity and capability validation
@@ -125,7 +125,7 @@ The following failure modes require explicit attention during task review:
 
 ## A-01 — Minimum development foundation
 
-**Status:** Planned
+**Status:** Complete
 
 ### Goal and scope
 
@@ -186,7 +186,7 @@ The pinned SDK, minimal solution, five project boundaries, and dependency-direct
 
 ## A-02 — Minimal backend host and container path
 
-**Status:** Planned
+**Status:** Complete
 
 ### Goal and scope
 
@@ -229,7 +229,7 @@ The minimal backend can be built, tested, run directly with the WSL SDK, and bui
 
 ## A-03 — Containerized frontend development foundation
 
-**Status:** Planned
+**Status:** Complete
 
 ### Goal and scope
 
@@ -274,7 +274,7 @@ The frontend has a reproducible containerized development and build foundation w
 
 ## A-04 — Nginx-fronted development Compose stack
 
-**Status:** Planned
+**Status:** Complete
 
 ### Goal and scope
 
@@ -322,7 +322,7 @@ The Nginx-fronted development topology starts reproducibly in WSL without Docker
 
 ## A-05 — PostgreSQL baseline and truthful readiness
 
-**Status:** Planned
+**Status:** Complete
 
 ### Goal and scope
 
@@ -367,7 +367,7 @@ FlowPlane has a minimal, reproducible PostgreSQL migration path and truthful hea
 
 ## A-06 — Minimal Keycloak/OIDC path
 
-**Status:** Planned
+**Status:** Complete
 
 ### Goal and scope
 
@@ -413,7 +413,7 @@ Minimal standards-based OIDC authentication works end to end through the support
 
 ## A-07 — Production-style frontend path
 
-**Status:** Planned
+**Status:** Complete
 
 ### Goal and scope
 
@@ -458,7 +458,7 @@ Vite production output is served correctly by a Node.js-free Nginx runtime with 
 
 ## A-08 — Milestone 0 closure
 
-**Status:** Planned
+**Status:** In review
 
 ### Goal and scope
 
@@ -498,6 +498,10 @@ Close Milestone 0 by adding repository-development CI and concise clean-checkout
 ### Exit criteria
 
 Every Milestone 0 exit criterion in the MVP implementation plan has current evidence, applicable documentation is concise, and provider work can begin without expanding the foundation.
+
+### Closure evidence
+
+When A-08 passes its review gate, the repository foundation is continuously checked by `.github/workflows/foundation.yml`; `tests/container/milestone0.sh` remains the complete local A-04 through A-07 acceptance path. The root README and contributing guide document the clean-checkout WSL workflow and distinguish required CI from heavier browser/container verification. GitHub issue #9 and the Milestone remain the live approval/status record; this section records the source-controlled verification entry points without beginning A-09.
 
 ## A-09 — Minimal provider configuration and secret boundary
 

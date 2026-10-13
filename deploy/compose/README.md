@@ -2,7 +2,7 @@
 
 `compose.yaml` is the single supported development Compose file. It provides two alternate frontend serving modes over the same backend, PostgreSQL, and Keycloak foundation: the default Vite/HMR development path and the opt-in production-style static Nginx path.
 
-Copy `.env.example` to the ignored `.env` file, then set `FLOWPLANE_UID` and `FLOWPLANE_GID` to the values reported by `id -u` and `id -g` in WSL. All committed passwords are explicitly local-development-only defaults; replace them in `.env` when needed and never store real credentials in the example file.
+Copy `.env.example` to the ignored `.env` file, then set `FLOWPLANE_UID` and `FLOWPLANE_GID` to the values reported by `id -u` and `id -g` in WSL. The committed example contains local-development-only bootstrap values, not production or shared credentials. Database passwords, Keycloak bootstrap credentials, browser test credentials, and tokens are secret values even in development; override them only in the ignored `.env` and never commit or log them. Browser-facing OIDC authority and public client ID values are intentionally public configuration and must not be mistaken for secrets.
 
 From the repository root, validate and start the stack with:
 
@@ -38,25 +38,13 @@ As of A-05, backend readiness includes PostgreSQL connectivity while liveness re
 
 ## Apply the PostgreSQL baseline migration
 
-Migrations are explicit and are not applied automatically when the application starts. From the repository root, restore the pinned local EF tool and apply migrations to the WSL-accessible PostgreSQL port:
+Migrations are explicit and are not applied automatically when the application starts. From the repository root, use the wrapper to resolve the ignored Compose environment file as data, restore the pinned local EF tool, and apply migrations to the WSL-accessible PostgreSQL port:
 
 ```sh
-set -a
-. deploy/compose/.env
-set +a
-
-dotnet tool restore
-FlowPlane__PostgreSql__Host=127.0.0.1 \
-FlowPlane__PostgreSql__Port="${FLOWPLANE_POSTGRES_PORT}" \
-FlowPlane__PostgreSql__Database="${FLOWPLANE_POSTGRES_DB}" \
-FlowPlane__PostgreSql__Username="${FLOWPLANE_POSTGRES_USER}" \
-FlowPlane__PostgreSql__Password="${FLOWPLANE_POSTGRES_PASSWORD}" \
-  dotnet tool run dotnet-ef database update \
-  --project src/backend/FlowPlane.Infrastructure/FlowPlane.Infrastructure.csproj \
-  --startup-project src/backend/FlowPlane.Infrastructure/FlowPlane.Infrastructure.csproj
+sh deploy/compose/apply-migrations.sh
 ```
 
-The pinned empty baseline migration creates only EF Core's `__EFMigrationsHistory` table. It deliberately creates no FlowPlane domain tables. Running the update command again is the supported idempotency check for the development bootstrap path.
+The wrapper does not source `.env` as shell code and does not print the resolved password. Pass a different environment-file path as its only argument when needed. The pinned empty baseline migration creates only EF Core's `__EFMigrationsHistory` table. It deliberately creates no FlowPlane domain tables. Running the wrapper again is the supported idempotency check for the development bootstrap path.
 
 SQL Server, SSISDB, and SSIS remain external to this stack and are not required for startup.
 
@@ -86,6 +74,12 @@ Run the A-04 topology regression and the A-05 PostgreSQL/readiness verification 
 ```sh
 sh tests/container/a04-development-stack.sh
 sh tests/container/a05-postgresql-baseline.sh
+```
+
+After a foundation-wide change, run the thin Milestone 0 orchestrator. It invokes A-04 through A-07 in order, stops on the first failure, and leaves cleanup to each isolated contract:
+
+```sh
+sh tests/container/milestone0.sh
 ```
 
 Stop the stack without deleting PostgreSQL data:
