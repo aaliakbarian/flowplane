@@ -41,7 +41,7 @@ The task sections are the authoritative detail. This checklist records source-co
 - [x] A-05 PostgreSQL baseline and truthful readiness
 - [x] A-06 Minimal Keycloak/OIDC path
 - [x] A-07 Production-style frontend path
-- [ ] A-08 Milestone 0 closure
+- [x] A-08 Milestone 0 closure
 - [ ] A-09 Minimal provider configuration and secret boundary
 - [ ] A-10 SSIS connectivity and capability validation
 - [ ] A-11 Read-only SSIS discovery
@@ -175,7 +175,7 @@ This is the first coding task and first implementation commit. Its commit must c
 ### GREEN verification
 
 - `dotnet --version` resolves SDK 10.0.112 through repository configuration.
-- `global.json` contains `rollForward: latestPatch` and `allowPrerelease: false`.
+- A-01 originally verified `rollForward: latestPatch`; A-02 later refined the repository policy to `latestFeature` so the WSL 10.0.1xx SDK and official container 10.0.4xx SDK feature bands are both supported. The current repository policy is recorded in the Implementation gate decisions section above.
 - `dotnet restore`, `dotnet build`, and `dotnet test` succeed from WSL.
 - Architecture tests prove that Domain has no FlowPlane project dependency, Application does not reference the SSIS provider, and neither Domain nor Application references `FlowPlane.Providers.Ssis`.
 - The diff contains no HTTP behavior, containers, frontend, persistence, authentication, or provider implementation.
@@ -458,7 +458,7 @@ Vite production output is served correctly by a Node.js-free Nginx runtime with 
 
 ## A-08 — Milestone 0 closure
 
-**Status:** In review
+**Status:** Complete
 
 ### Goal and scope
 
@@ -501,7 +501,7 @@ Every Milestone 0 exit criterion in the MVP implementation plan has current evid
 
 ### Closure evidence
 
-When A-08 passes its review gate, the repository foundation is continuously checked by `.github/workflows/foundation.yml`; `tests/container/milestone0.sh` remains the complete local A-04 through A-07 acceptance path. The root README and contributing guide document the clean-checkout WSL workflow and distinguish required CI from heavier browser/container verification. GitHub issue #9 and the Milestone remain the live approval/status record; this section records the source-controlled verification entry points without beginning A-09.
+The GitHub-hosted `.github/workflows/foundation.yml` workflow completed successfully after the A-08 push, and the local clean-checkout Milestone 0 aggregate also passed. The root `README.md` and `CONTRIBUTING.md` document the verified WSL workflow, including that the FlowPlane foundation boots without SSIS configuration. GitHub issue #9 and the Milestone remain the live status tracker until issue #9 is formally closed.
 
 ## A-09 — Minimal provider configuration and secret boundary
 
