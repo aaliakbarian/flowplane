@@ -142,10 +142,43 @@ then
   require_text "$migration_script" 'dotnet tool run dotnet-ef database update'
 fi
 
-test "$(grep -c '^\*\*Status:\*\* Complete$' "$milestone_plan")" -eq 7 ||
-  fail "$milestone_plan must record A-01 through A-07 as complete"
-test "$(grep -c '^\*\*Status:\*\* In review$' "$milestone_plan")" -eq 1 ||
-  fail "$milestone_plan must record A-08 as in review"
+require_milestone_task_state() {
+  task_id=$1
+  expected_status=$2
+  expected_checklist_state=$3
+
+  actual_status=$(awk -v task="$task_id" '
+    $0 ~ ("^## " task " ") { in_task = 1; next }
+    in_task && /^## A-[0-9][0-9] / { exit }
+    in_task && /^\*\*Status:\*\*/ { print; exit }
+  ' "$milestone_plan")
+  expected_status_line="**Status:** $expected_status"
+  if test "$actual_status" != "$expected_status_line"
+  then
+    fail "$milestone_plan must record $task_id as $expected_status; found: ${actual_status:-missing}"
+  fi
+
+  actual_checklist_state=$(awk -v task="$task_id" '
+    /^## Progress tracking$/ { in_progress = 1; next }
+    in_progress && /^## / { exit }
+    in_progress && index($0, "- [x] " task " ") == 1 { print "checked" }
+    in_progress && index($0, "- [ ] " task " ") == 1 { print "unchecked" }
+  ' "$milestone_plan")
+  if test "$actual_checklist_state" != "$expected_checklist_state"
+  then
+    fail "$milestone_plan must mark $task_id $expected_checklist_state in the progress checklist; found: ${actual_checklist_state:-missing}"
+  fi
+}
+
+for task_id in A-01 A-02 A-03 A-04 A-05 A-06 A-07 A-08
+do
+  require_milestone_task_state "$task_id" Complete checked
+done
+
+for task_id in A-09 A-10 A-11 A-12
+do
+  require_milestone_task_state "$task_id" Planned unchecked
+done
 
 for command in \
   'dotnet restore FlowPlane.slnx --disable-parallel -m:1 --nologo' \
