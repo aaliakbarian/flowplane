@@ -14,3 +14,6 @@
 # Local development Compose overrides
 /deploy/compose/.env
 /deploy/compose/secrets/
+
+# Local external SSISDB integration-test credentials
+/tests/integration/ssis/.env

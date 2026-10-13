@@ -74,18 +74,20 @@ public sealed class ProjectDependencyTests
     }
 
     [Fact]
-    public void No_backend_project_references_SqlClient_before_A10()
+    public void SqlClient_is_referenced_only_by_the_SSIS_provider()
     {
         var repositoryRoot = FindRepositoryRoot();
-        var packageReferences = Directory
+        var projectsReferencingSqlClient = Directory
             .EnumerateFiles(
                 Path.Combine(repositoryRoot, "src", "backend"),
                 "*.csproj",
                 SearchOption.AllDirectories)
-            .SelectMany(ReadPackageReferencesFromAbsolutePath)
+            .Where(projectPath => ReadPackageReferencesFromAbsolutePath(projectPath)
+                .Contains("Microsoft.Data.SqlClient", StringComparer.Ordinal))
+            .Select(Path.GetFileNameWithoutExtension)
             .ToArray();
 
-        Assert.DoesNotContain("Microsoft.Data.SqlClient", packageReferences);
+        Assert.Equal(["FlowPlane.Providers.Ssis"], projectsReferencingSqlClient);
     }
 
     [Fact]

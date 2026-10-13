@@ -11,9 +11,11 @@
   <Folder Name="/tests/integration/">
     <Project Path="tests/integration/FlowPlane.Api.Tests/FlowPlane.Api.Tests.csproj" />
     <Project Path="tests/integration/FlowPlane.Persistence.Tests/FlowPlane.Persistence.Tests.csproj" />
+    <Project Path="tests/integration/FlowPlane.Ssis.Integration.Tests/FlowPlane.Ssis.Integration.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/unit/">
     <Project Path="tests/unit/FlowPlane.Architecture.Tests/FlowPlane.Architecture.Tests.csproj" />
     <Project Path="tests/unit/FlowPlane.ProviderConfiguration.Tests/FlowPlane.ProviderConfiguration.Tests.csproj" />
+    <Project Path="tests/unit/FlowPlane.Providers.Ssis.Tests/FlowPlane.Providers.Ssis.Tests.csproj" />
   </Folder>
 </Solution>
