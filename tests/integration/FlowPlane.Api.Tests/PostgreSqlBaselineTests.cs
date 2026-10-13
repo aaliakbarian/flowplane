@@ -64,14 +64,14 @@ public sealed class PostgreSqlBaselineTests
                 """;
 
             var tableCount = (long)(await countTables.ExecuteScalarAsync(cancellationToken))!;
-            Assert.Equal(1, tableCount);
+            Assert.Equal(4, tableCount);
 
             await using var countMigrations = databaseConnection.CreateCommand();
             countMigrations.CommandText = "SELECT count(*) FROM \"__EFMigrationsHistory\";";
 
             var migrationCount =
                 (long)(await countMigrations.ExecuteScalarAsync(cancellationToken))!;
-            Assert.Equal(1, migrationCount);
+            Assert.Equal(2, migrationCount);
         }
         finally
         {

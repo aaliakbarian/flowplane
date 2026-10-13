@@ -13,3 +13,4 @@
 
 # Local development Compose overrides
 /deploy/compose/.env
+/deploy/compose/secrets/

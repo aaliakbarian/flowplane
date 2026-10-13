@@ -10,8 +10,10 @@
   <Folder Name="/tests/" />
   <Folder Name="/tests/integration/">
     <Project Path="tests/integration/FlowPlane.Api.Tests/FlowPlane.Api.Tests.csproj" />
+    <Project Path="tests/integration/FlowPlane.Persistence.Tests/FlowPlane.Persistence.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/unit/">
     <Project Path="tests/unit/FlowPlane.Architecture.Tests/FlowPlane.Architecture.Tests.csproj" />
+    <Project Path="tests/unit/FlowPlane.ProviderConfiguration.Tests/FlowPlane.ProviderConfiguration.Tests.csproj" />
   </Folder>
 </Solution>

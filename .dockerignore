@@ -3,3 +3,5 @@
 **/obj/
 **/node_modules/
 **/dist/
+deploy/compose/.env
+deploy/compose/secrets/

@@ -57,6 +57,66 @@ public sealed class ProjectDependencyTests
         Assert.Empty(unexpectedDependencies);
     }
 
+    [Theory]
+    [InlineData("src/backend/FlowPlane.Domain/FlowPlane.Domain.csproj")]
+    [InlineData("src/backend/FlowPlane.Application/FlowPlane.Application.csproj")]
+    public void Inner_projects_do_not_reference_outer_persistence_or_protection_packages(
+        string projectPath)
+    {
+        var packageReferences = ReadPackageReferences(projectPath);
+
+        Assert.DoesNotContain("Microsoft.EntityFrameworkCore", packageReferences);
+        Assert.DoesNotContain("Npgsql.EntityFrameworkCore.PostgreSQL", packageReferences);
+        Assert.DoesNotContain(
+            "Microsoft.AspNetCore.DataProtection.EntityFrameworkCore",
+            packageReferences);
+        Assert.DoesNotContain("Microsoft.Data.SqlClient", packageReferences);
+    }
+
+    [Fact]
+    public void No_backend_project_references_SqlClient_before_A10()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var packageReferences = Directory
+            .EnumerateFiles(
+                Path.Combine(repositoryRoot, "src", "backend"),
+                "*.csproj",
+                SearchOption.AllDirectories)
+            .SelectMany(ReadPackageReferencesFromAbsolutePath)
+            .ToArray();
+
+        Assert.DoesNotContain("Microsoft.Data.SqlClient", packageReferences);
+    }
+
+    [Fact]
+    public void Provider_independent_source_contains_no_SSIS_configuration_vocabulary()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var sourceFiles = new[]
+        {
+            Path.Combine(repositoryRoot, "src", "backend", "FlowPlane.Domain"),
+            Path.Combine(repositoryRoot, "src", "backend", "FlowPlane.Application"),
+        }.SelectMany(directory => Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories));
+
+        var offendingFiles = sourceFiles
+            .Where(path => File.ReadAllText(path).Contains("Ssis", StringComparison.OrdinalIgnoreCase))
+            .Select(path => Path.GetRelativePath(repositoryRoot, path))
+            .ToArray();
+
+        Assert.Empty(offendingFiles);
+    }
+
+    private static string[] ReadPackageReferences(string projectPath) =>
+        ReadPackageReferencesFromAbsolutePath(Path.Combine(FindRepositoryRoot(), projectPath));
+
+    private static string[] ReadPackageReferencesFromAbsolutePath(string projectPath) => XDocument
+        .Load(projectPath)
+        .Descendants("PackageReference")
+        .Select(reference => reference.Attribute("Include")?.Value)
+        .Where(include => include is not null)
+        .Cast<string>()
+        .ToArray();
+
     private static string FindRepositoryRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory);

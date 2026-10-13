@@ -1,5 +1,13 @@
-using FlowPlane.Infrastructure.Persistence;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 
+using FlowPlane.Application.Providers;
+using FlowPlane.Application.Secrets;
+using FlowPlane.Infrastructure.Persistence;
+using FlowPlane.Infrastructure.Secrets;
+
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +28,8 @@ public static class DependencyInjection
             options.UseNpgsql(PostgreSqlConnectionString.Resolve(configuration));
         });
 
+        AddSecretServices(services, configuration);
+
         services
             .AddHealthChecks()
             .AddDbContextCheck<FlowPlaneDbContext>(
@@ -28,5 +38,69 @@ public static class DependencyInjection
                 tags: ["ready"]);
 
         return services;
+    }
+
+    private static void AddSecretServices(
+        IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var certificate = TryLoadRootCertificate(
+            configuration["FlowPlane:Secrets:RootCertificatePath"]);
+        if (certificate is not null)
+        {
+            services.AddSingleton(certificate);
+            services
+                .AddDataProtection()
+                .SetApplicationName("FlowPlane")
+                .PersistKeysToDbContext<FlowPlaneDbContext>()
+                .ProtectKeysWithCertificate(certificate);
+            services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
+        }
+        else
+        {
+            services.AddSingleton<ISecretProtector, UnavailableSecretProtector>();
+        }
+
+        services.AddScoped<EnvironmentSecretResolver>();
+        services.AddScoped<ManagedSecretStore>();
+        services.AddScoped<IManagedSecretStore>(provider =>
+            provider.GetRequiredService<ManagedSecretStore>());
+        services.AddScoped<ISecretResolver, SecretResolver>();
+        services.AddScoped<IProviderInstanceStore, ProviderInstanceStore>();
+    }
+
+    private static X509Certificate2? TryLoadRootCertificate(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            var certificate = X509CertificateLoader.LoadPkcs12FromFile(
+                path,
+                password: null,
+                X509KeyStorageFlags.EphemeralKeySet);
+            if (certificate.HasPrivateKey)
+            {
+                return certificate;
+            }
+
+            certificate.Dispose();
+            return null;
+        }
+        catch (CryptographicException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 }

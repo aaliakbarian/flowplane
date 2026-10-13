@@ -1,6 +1,6 @@
 # FlowPlane development Compose stack
 
-`compose.yaml` is the single supported development Compose file. It provides two alternate frontend serving modes over the same backend, PostgreSQL, and Keycloak foundation: the default Vite/HMR development path and the opt-in production-style static Nginx path.
+`compose.yaml` is the primary development Compose file. It provides two alternate frontend serving modes over the same backend, PostgreSQL, and Keycloak foundation: the default Vite/HMR development path and the opt-in production-style static Nginx path. The optional `compose.secrets.yaml` override adds only the A-09 external root-certificate mount for built-in provider-secret operations.
 
 Copy `.env.example` to the ignored `.env` file, then set `FLOWPLANE_UID` and `FLOWPLANE_GID` to the values reported by `id -u` and `id -g` in WSL. The committed example contains local-development-only bootstrap values, not production or shared credentials. Database passwords, Keycloak bootstrap credentials, browser test credentials, and tokens are secret values even in development; override them only in the ignored `.env` and never commit or log them. Browser-facing OIDC authority and public client ID values are intentionally public configuration and must not be mistaken for secrets.
 
@@ -36,6 +36,27 @@ sh tests/container/a07-production-frontend.sh
 
 As of A-05, backend readiness includes PostgreSQL connectivity while liveness remains process-only. Compose supplies separate `FlowPlane__PostgreSql__*` configuration values so Npgsql can safely construct the connection string even when credentials contain connection-string delimiters. Credentials are not stored in source configuration or written to logs.
 
+## Optional built-in provider-secret protection
+
+The default stack still boots without secret-protection root material. In that mode PostgreSQL, OIDC, health, and provider-independent behavior remain available, while `flowplane:` secret create, replace, delete, and resolve operations return a safe protection-unavailable error. Independent `env:` references remain a development/testing convenience and are never persisted by FlowPlane.
+
+Secret resolution uses a bounded callback so application code does not gain a general-purpose plaintext read API and resolved values have a short practical lifetime. This does not promise perfect memory zeroization: process-environment strings and immutable strings created by downstream .NET APIs cannot necessarily be erased on demand.
+
+For the A-09 reference path, create an unencrypted development-only PKCS#12/PFX file outside Git, then add the optional Compose override:
+
+```sh
+sh deploy/compose/create-development-root-certificate.sh
+docker compose \
+  --env-file deploy/compose/.env \
+  -f deploy/compose/compose.yaml \
+  -f deploy/compose/compose.secrets.yaml \
+  up --build --wait
+```
+
+The generator uses a restrictive `umask` and sets the PFX to mode `0400`. `compose.secrets.yaml` runs the backend with the configured WSL `FLOWPLANE_UID`/`FLOWPLANE_GID`, mounts the PFX read-only at `/run/secrets/flowplane_root_certificate`, and supplies it only to `backend`; Nginx, frontend, PostgreSQL, and Keycloak do not receive it. The unencrypted PFX is a development/reference bootstrap choice delivered through a Docker Compose secret, not enterprise key management. Do not make it world-readable, copy it into an image, commit it, or pass it as an ordinary environment variable.
+
+FlowPlane persists authenticated provider-secret ciphertext and the Data Protection key ring in PostgreSQL. The key ring is explicitly protected by the external certificate. Back up PostgreSQL data and the required certificate/private key separately: a database backup alone cannot decrypt provider credentials, while loss of the certificate can make them unrecoverable. Retain old Data Protection keys and overlapping root certificates for existing ciphertext during future rotation. ASP.NET Core Data Protection is intentionally used for application-owned, replaceable provider credentials; it is not claimed as a general indefinite archival secret system.
+
 ## Apply the PostgreSQL baseline migration
 
 Migrations are explicit and are not applied automatically when the application starts. From the repository root, use the wrapper to resolve the ignored Compose environment file as data, restore the pinned local EF tool, and apply migrations to the WSL-accessible PostgreSQL port:
@@ -44,7 +65,7 @@ Migrations are explicit and are not applied automatically when the application s
 sh deploy/compose/apply-migrations.sh
 ```
 
-The wrapper does not source `.env` as shell code and does not print the resolved password. Pass a different environment-file path as its only argument when needed. The pinned empty baseline migration creates only EF Core's `__EFMigrationsHistory` table. It deliberately creates no FlowPlane domain tables. Running the wrapper again is the supported idempotency check for the development bootstrap path.
+The wrapper does not source `.env` as shell code and does not print the resolved password. Pass a different environment-file path as its only argument when needed. The A-09 migration adds only `ProviderInstances`, encrypted `FlowPlaneSecrets`, and the protected Data Protection key ring alongside EF Core's `__EFMigrationsHistory`; it adds no Pipeline, Run, Schedule, discovery cache, or SSIS hierarchy. Running the wrapper again is the supported idempotency check for the development bootstrap path.
 
 SQL Server, SSISDB, and SSIS remain external to this stack and are not required for startup.
 

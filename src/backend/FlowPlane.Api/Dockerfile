@@ -3,10 +3,14 @@ WORKDIR /src
 
 COPY global.json Directory.Build.props ./
 COPY src/backend/FlowPlane.Api/FlowPlane.Api.csproj src/backend/FlowPlane.Api/
+COPY src/backend/FlowPlane.Application/FlowPlane.Application.csproj src/backend/FlowPlane.Application/
+COPY src/backend/FlowPlane.Domain/FlowPlane.Domain.csproj src/backend/FlowPlane.Domain/
 COPY src/backend/FlowPlane.Infrastructure/FlowPlane.Infrastructure.csproj src/backend/FlowPlane.Infrastructure/
 RUN dotnet restore src/backend/FlowPlane.Api/FlowPlane.Api.csproj
 
 COPY src/backend/FlowPlane.Api/ src/backend/FlowPlane.Api/
+COPY src/backend/FlowPlane.Application/ src/backend/FlowPlane.Application/
+COPY src/backend/FlowPlane.Domain/ src/backend/FlowPlane.Domain/
 COPY src/backend/FlowPlane.Infrastructure/ src/backend/FlowPlane.Infrastructure/
 RUN dotnet publish src/backend/FlowPlane.Api/FlowPlane.Api.csproj \
     --configuration Release \

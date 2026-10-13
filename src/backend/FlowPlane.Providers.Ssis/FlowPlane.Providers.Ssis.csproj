@@ -1,1 +1,6 @@
-<Project Sdk="Microsoft.NET.Sdk" />
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../FlowPlane.Application/FlowPlane.Application.csproj" />
+    <ProjectReference Include="../FlowPlane.Domain/FlowPlane.Domain.csproj" />
+  </ItemGroup>
+</Project>
