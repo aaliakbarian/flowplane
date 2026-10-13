@@ -42,7 +42,7 @@ The task sections are the authoritative detail. This checklist records source-co
 - [x] A-06 Minimal Keycloak/OIDC path
 - [x] A-07 Production-style frontend path
 - [x] A-08 Milestone 0 closure
-- [ ] A-09 Minimal provider configuration and secret boundary
+- [x] A-09 Minimal provider configuration and secret boundary
 - [ ] A-10 SSIS connectivity and capability validation
 - [ ] A-11 Read-only SSIS discovery
 - [ ] A-12 Thin configuration/discovery API and UI
@@ -505,7 +505,7 @@ The GitHub-hosted `.github/workflows/foundation.yml` workflow completed successf
 
 ## A-09 — Minimal provider configuration and secret boundary
 
-**Status:** Planned
+**Status:** Complete
 
 ### Goal and scope
 

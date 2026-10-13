@@ -170,12 +170,12 @@ require_milestone_task_state() {
   fi
 }
 
-for task_id in A-01 A-02 A-03 A-04 A-05 A-06 A-07 A-08
+for task_id in A-01 A-02 A-03 A-04 A-05 A-06 A-07 A-08 A-09
 do
   require_milestone_task_state "$task_id" Complete checked
 done
 
-for task_id in A-09 A-10 A-11 A-12
+for task_id in A-10 A-11 A-12
 do
   require_milestone_task_state "$task_id" Planned unchecked
 done
