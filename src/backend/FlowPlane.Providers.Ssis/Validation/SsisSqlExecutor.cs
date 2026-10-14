@@ -18,9 +18,9 @@ internal sealed class SsisSqlExecutor : ISsisSqlExecutor
             HAS_DBACCESS(N'SSISDB');
         """;
 
-    private const string CatalogSurfaceProbeSql =
+    internal const string CatalogSurfaceProbeSql =
         """
-        SELECT TOP (0) [id], [name] FROM [catalog].[folders];
+        SELECT TOP (0) [folder_id], [name] FROM [catalog].[folders];
         SELECT TOP (0) [project_id], [folder_id], [project_format_version]
             FROM [catalog].[projects];
         SELECT TOP (0) [package_id], [project_id], [package_format_version]

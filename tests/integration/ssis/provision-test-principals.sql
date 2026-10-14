@@ -26,7 +26,7 @@ IF USER_ID(N'$(NoObjectPermissionLogin)') IS NULL
 GO
 
 DECLARE @folder_id bigint = (
-    SELECT [id]
+    SELECT [folder_id]
     FROM [catalog].[folders]
     WHERE [name] = N'$(TestFolder)');
 

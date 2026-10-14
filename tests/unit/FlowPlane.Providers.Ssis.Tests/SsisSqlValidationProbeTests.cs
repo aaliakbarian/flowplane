@@ -7,6 +7,33 @@ namespace FlowPlane.Providers.Ssis.Tests;
 public sealed class SsisSqlValidationProbeTests
 {
     [Fact]
+    public void Catalog_surface_probe_uses_the_observed_SQL_Server_2025_public_columns()
+    {
+        var sql = SsisSqlExecutor.CatalogSurfaceProbeSql;
+
+        Assert.Contains(
+            "SELECT TOP (0) [folder_id], [name] FROM [catalog].[folders];",
+            sql,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "SELECT TOP (0) [project_id], [folder_id], [project_format_version]",
+            sql,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "SELECT TOP (0) [package_id], [project_id], [package_format_version]",
+            sql,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "SELECT TOP (0) [object_type], [object_id], [permission_type]",
+            sql,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "SELECT TOP (0) [id], [name] FROM [catalog].[folders];",
+            sql,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Real_executor_classifies_closed_loopback_endpoint_without_secret_disclosure()
     {
         const string canary = "a10-real-executor-password-canary";

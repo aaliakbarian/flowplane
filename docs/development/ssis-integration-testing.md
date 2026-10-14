@@ -20,6 +20,8 @@ The controlled principals are:
 
 Zero visible objects or permissions is intentionally reported as capability `Unknown`; it is not proof of denial and does not make connectivity validation fail.
 
+The SQL Server 2025 RTM (`17.0.1000.7`) public `catalog.folders` view observed in the controlled environment exposes `folder_id`, not the `id` name currently shown in Microsoft Learn. The A-10 compatibility probe and provisioning template therefore require `folder_id` explicitly; the remaining allowlisted project, package, and effective-permission columns match their current Microsoft-documented public view shapes and remain subject to the controlled probe. SQL Server 2025 remains `Unverified` until the complete controlled matrix passes.
+
 ## Local configuration
 
 Copy the non-secret template and protect the populated file:
