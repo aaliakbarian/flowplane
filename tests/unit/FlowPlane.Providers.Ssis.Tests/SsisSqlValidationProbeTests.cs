@@ -82,14 +82,14 @@ public sealed class SsisSqlValidationProbeTests
     }
 
     [Fact]
-    public async Task Recognized_unverified_server_still_runs_catalog_and_capability_probes()
+    public async Task Observed_definition_formats_preserve_capabilities_while_server_remains_unverified()
     {
         var executor = new StubSqlExecutor(
-            MasterFacts("16.0.4135.4", 1),
+            MasterFacts("17.0.1000.7", 1),
             new SsisCatalogEvidence(
                 new SsisPermissionEvidence(true, true, true, false, false),
-                [16],
-                [16]));
+                [1],
+                [8]));
         var probe = new SsisSqlValidationProbe(executor, SsisValidationOptions.Default);
 
         var result = await probe.ValidateAsync(
@@ -161,7 +161,7 @@ public sealed class SsisSqlValidationProbeTests
             new SsisCatalogEvidence(
                 new SsisPermissionEvidence(true, true, true, false, false),
                 [999],
-                [16]));
+                [8]));
         var probe = new SsisSqlValidationProbe(executor, SsisValidationOptions.Default);
 
         var result = await probe.ValidateAsync(
@@ -178,6 +178,33 @@ public sealed class SsisSqlValidationProbeTests
             Assert.Equal(ProviderCapabilityAvailability.Unknown, capability.Availability));
         Assert.Contains(result.Facts, fact =>
             fact.Code == "ssis.project-format.observed" && fact.Value == "999");
+    }
+
+    [Fact]
+    public async Task Unknown_package_format_keeps_capabilities_conservative()
+    {
+        var executor = new StubSqlExecutor(
+            MasterFacts("17.0.1000.7", 1),
+            new SsisCatalogEvidence(
+                new SsisPermissionEvidence(true, true, true, false, false),
+                [1],
+                [999]));
+        var probe = new SsisSqlValidationProbe(executor, SsisValidationOptions.Default);
+
+        var result = await probe.ValidateAsync(
+            Configuration(),
+            "secret".AsMemory(),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(ProviderValidationOutcome.Failed, result.Outcome);
+        Assert.Contains(result.Checks, check => check.Code == "ssis.server-version.unverified");
+        Assert.Contains(result.Checks, check =>
+            check.Code == "ssis.definition-format.unsupported" &&
+            check.Status == ProviderValidationCheckStatus.Failed);
+        Assert.All(result.Capabilities, capability =>
+            Assert.Equal(ProviderCapabilityAvailability.Unknown, capability.Availability));
+        Assert.Contains(result.Facts, fact =>
+            fact.Code == "ssis.package-format.observed" && fact.Value == "999");
     }
 
     [Theory]

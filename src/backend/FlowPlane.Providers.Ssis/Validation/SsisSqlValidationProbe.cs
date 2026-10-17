@@ -95,9 +95,11 @@ internal sealed class SsisSqlValidationProbe(
             "ssis.catalog.surface-compatible",
             "The required public SSISDB catalog surface is compatible."));
 
-        var unknownFormat =
-            SsisCompatibilityPolicy.HasUnknownDefinitionFormat(evidence.ProjectFormatVersions) ||
-            SsisCompatibilityPolicy.HasUnknownDefinitionFormat(evidence.PackageFormatVersions);
+        var hasUnknownProjectFormat = SsisCompatibilityPolicy.HasUnknownProjectFormat(
+            evidence.ProjectFormatVersions);
+        var hasUnknownPackageFormat = SsisCompatibilityPolicy.HasUnknownPackageFormat(
+            evidence.PackageFormatVersions);
+        var unknownFormat = hasUnknownProjectFormat || hasUnknownPackageFormat;
         var permissionEvidence = evidence.Permissions with
         {
             HasUnknownDefinitionFormat = unknownFormat,

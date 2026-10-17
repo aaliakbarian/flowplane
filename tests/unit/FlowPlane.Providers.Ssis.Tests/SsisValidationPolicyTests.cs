@@ -81,11 +81,30 @@ public sealed class SsisValidationPolicyTests
         Assert.Equal((SsisCatalogAccess)expected, SsisCatalogAccessMapper.Map(value));
     }
 
-    [Fact]
-    public void Unknown_definition_format_is_not_treated_as_server_or_catalog_failure()
+    [Theory]
+    [InlineData(1, false)]
+    [InlineData(8, true)]
+    [InlineData(999, true)]
+    public void Project_format_policy_recognizes_only_the_observed_project_format(
+        int format,
+        bool expectedUnknown)
     {
-        Assert.False(SsisCompatibilityPolicy.HasUnknownDefinitionFormat([15, 16, 17]));
-        Assert.True(SsisCompatibilityPolicy.HasUnknownDefinitionFormat([16, 999]));
+        Assert.Equal(
+            expectedUnknown,
+            SsisCompatibilityPolicy.HasUnknownProjectFormat([format]));
+    }
+
+    [Theory]
+    [InlineData(8, false)]
+    [InlineData(1, true)]
+    [InlineData(999, true)]
+    public void Package_format_policy_recognizes_only_the_observed_package_format(
+        int format,
+        bool expectedUnknown)
+    {
+        Assert.Equal(
+            expectedUnknown,
+            SsisCompatibilityPolicy.HasUnknownPackageFormat([format]));
     }
 
     [Theory]
