@@ -59,7 +59,7 @@ public sealed class SsisValidationPolicyTests
     [Theory]
     [InlineData("15.0.2000.5", "Unverified")]
     [InlineData("16.0.4135.4", "Unverified")]
-    [InlineData("17.0.1000.1", "Unverified")]
+    [InlineData("17.0.1000.7", "Supported")]
     [InlineData("14.0.1000.1", "Unsupported")]
     [InlineData("not-a-version", "Unsupported")]
     public void Server_version_policy_distinguishes_recognized_targets_from_supported_versions(

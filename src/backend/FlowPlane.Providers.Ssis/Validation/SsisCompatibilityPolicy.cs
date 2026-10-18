@@ -9,7 +9,7 @@ internal enum SsisServerVersionCompatibility
 
 internal static class SsisCompatibilityPolicy
 {
-    private static readonly HashSet<int> SupportedMajorVersions = [];
+    private static readonly HashSet<int> SupportedMajorVersions = [17];
     private static readonly HashSet<int> RecognizedTargetMajorVersions = [15, 16, 17];
     private static readonly HashSet<int> RecognizedProjectFormats = [1];
     private static readonly HashSet<int> RecognizedPackageFormats = [8];

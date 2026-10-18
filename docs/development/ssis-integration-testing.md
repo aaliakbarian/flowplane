@@ -20,7 +20,7 @@ The controlled principals are:
 
 Zero visible objects or permissions is intentionally reported as capability `Unknown`; it is not proof of denial and does not make connectivity validation fail.
 
-The SQL Server 2025 RTM (`17.0.1000.7`) public `catalog.folders` view observed in the controlled environment exposes `folder_id`, not the `id` name currently shown in Microsoft Learn. The A-10 compatibility probe and provisioning template therefore require `folder_id` explicitly; the remaining allowlisted project, package, and effective-permission columns match their current Microsoft-documented public view shapes and remain subject to the controlled probe. SQL Server 2025 remains `Unverified` until the complete controlled matrix passes.
+The SQL Server 2025 RTM (`17.0.1000.7`) public `catalog.folders` view observed in the controlled environment exposes `folder_id`, not the `id` name currently shown in Microsoft Learn. The A-10 compatibility probe and provisioning template therefore require `folder_id` explicitly; the remaining allowlisted `catalog.projects`, `catalog.packages`, and `catalog.effective_object_permissions` columns match their current Microsoft-documented public view shapes and passed the controlled probe. The observed project and package format versions were `1` and `8`, respectively.
 
 ## Local configuration
 
@@ -75,6 +75,8 @@ docker run --rm \
 
 Use a DNS name or address reachable from the container; `127.0.0.1` inside the container is the container itself. The production backend image intentionally contains no SDK or test runner, so this controlled SDK-container path exercises the same Linux/SqlClient network stack without changing the runtime image.
 
-## Completion evidence
+## Compatibility evidence
 
-A-10 remains open until the least-privilege technical path and representative wrong-password, TLS, catalog-access, permission, and recognized-version cases have run in a controlled real SSISDB environment. Until that evidence is accepted, SQL Server 2019, 2022, and 2025 are reported as `Unverified`, and the integration suite expects the support gate to remain failed while independently verifying catalog and capability behavior. Promoting a tested major to `Supported` requires an explicit compatibility-policy and test change backed by the captured evidence. Unit tests and skipped integration tests are not sufficient closure evidence.
+The controlled A-10 matrix passed all six scenarios against SQL Server 2025 RTM (`17.0.1000.7`): READ plus EXECUTE, read-only, no catalog-object permission, no SSISDB access, invalid SQL password, and TLS certificate rejection without downgrade. The suite passed both from native WSL and from the non-root `mcr.microsoft.com/dotnet/sdk:10.0.402-noble` Linux container.
+
+This evidence promotes SQL Server major 17 to `Supported` only for the implemented A-10 connection, authentication, public-catalog validation, and capability-assessment boundary. All SQL Server 17.x builds are eligible for that validation path subject to its live version and public-catalog compatibility checks; the representative environment independently verified so far is SQL Server 2025 RTM `17.0.1000.7`, not other 17.x builds. SQL Server 2019 and 2022 remain recognized but `Unverified`. Package discovery, execution, cancellation, monitoring, deployment, ISPAC retrieval, DTSX parsing, graph projection, and unobserved definition formats remain outside this compatibility claim. A-11 owns discovery behavior; execution and the other deferred operations require their own representative evidence.

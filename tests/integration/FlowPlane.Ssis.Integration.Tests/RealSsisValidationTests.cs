@@ -27,7 +27,7 @@ public sealed class RealSsisValidationTests
 
         var result = await ValidateAsync(settings!, TestContext.Current.CancellationToken);
 
-        AssertRecognizedUnverified(result);
+        AssertSupportedValidation(result);
         Assert.Equal(ProviderCapabilityAvailability.Available, Capability(result, "discovery"));
         Assert.Equal(ProviderCapabilityAvailability.Available, Capability(result, "execution"));
     }
@@ -40,20 +40,20 @@ public sealed class RealSsisValidationTests
 
         var result = await ValidateAsync(settings!, TestContext.Current.CancellationToken);
 
-        AssertRecognizedUnverified(result);
+        AssertSupportedValidation(result);
         Assert.Equal(ProviderCapabilityAvailability.Available, Capability(result, "discovery"));
         Assert.Equal(ProviderCapabilityAvailability.Unavailable, Capability(result, "execution"));
     }
 
     [Fact]
-    public async Task Principal_without_visible_objects_reports_unknown_capabilities_while_version_is_unverified()
+    public async Task Principal_without_visible_objects_is_valid_with_unknown_capabilities()
     {
         var settings = RealSsisSettings.Load("NO_OBJECT_PERMISSION");
         Assert.SkipWhen(settings is null, RealSsisSettings.SkipMessage("NO_OBJECT_PERMISSION"));
 
         var result = await ValidateAsync(settings!, TestContext.Current.CancellationToken);
 
-        AssertRecognizedUnverified(result);
+        AssertSupportedValidation(result);
         Assert.Equal(ProviderCapabilityAvailability.Unknown, Capability(result, "discovery"));
         Assert.Equal(ProviderCapabilityAvailability.Unknown, Capability(result, "execution"));
     }
@@ -74,6 +74,8 @@ public sealed class RealSsisValidationTests
 
             Assert.False(result.IsValid);
             Assert.Contains(result.Checks, check => check.Code == "ssis.authentication.rejected");
+            Assert.All(result.Capabilities, capability =>
+                Assert.Equal(ProviderCapabilityAvailability.Unknown, capability.Availability));
             Assert.DoesNotContain(canary, result.ToString(), StringComparison.Ordinal);
         }
         finally
@@ -91,8 +93,11 @@ public sealed class RealSsisValidationTests
         var result = await ValidateAsync(settings!, TestContext.Current.CancellationToken);
 
         Assert.False(result.IsValid);
+        AssertSupportedServer(result);
         Assert.Contains(result.Checks, check =>
             check.Code is "ssis.catalog.inaccessible" or "ssis.catalog.missing");
+        Assert.All(result.Capabilities, capability =>
+            Assert.Equal(ProviderCapabilityAvailability.Unknown, capability.Availability));
     }
 
     [Fact]
@@ -107,6 +112,8 @@ public sealed class RealSsisValidationTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Checks, check => check.Code == "ssis.tls.certificate-rejected");
+        Assert.All(result.Capabilities, capability =>
+            Assert.Equal(ProviderCapabilityAvailability.Unknown, capability.Availability));
     }
 
     private static async Task<ProviderValidationResult> ValidateAsync(
@@ -146,15 +153,22 @@ public sealed class RealSsisValidationTests
             result.Capabilities,
             capability => capability.Code == code).Availability;
 
-    private static void AssertRecognizedUnverified(ProviderValidationResult result)
+    private static void AssertSupportedValidation(ProviderValidationResult result)
     {
-        Assert.Equal(ProviderValidationOutcome.Failed, result.Outcome);
-        Assert.Contains(result.Checks, check =>
-            check.Code == "ssis.server-version.unverified" &&
-            check.Status == ProviderValidationCheckStatus.Failed);
+        Assert.Equal(ProviderValidationOutcome.Succeeded, result.Outcome);
+        AssertSupportedServer(result);
         Assert.Contains(result.Checks, check =>
             check.Code == "ssis.catalog.surface-compatible" &&
             check.Status == ProviderValidationCheckStatus.Succeeded);
+    }
+
+    private static void AssertSupportedServer(ProviderValidationResult result)
+    {
+        Assert.Contains(result.Checks, check =>
+            check.Code == "ssis.server-version.supported" &&
+            check.Status == ProviderValidationCheckStatus.Succeeded);
+        Assert.DoesNotContain(result.Checks, check =>
+            check.Code == "ssis.server-version.unverified");
     }
 }
 

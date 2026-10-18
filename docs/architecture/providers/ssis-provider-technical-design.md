@@ -721,14 +721,16 @@ Compatibility has multiple independent dimensions:
 
 Microsoft's published DTSX specifications cover multiple product generations, but publication does not prove that one parser or integration test suite supports every historical artifact.
 
-The following is a **technical recommendation requiring real-environment validation**, not a support promise:
+The following matrix separates current bounded evidence from broader compatibility targets. A bounded validation status is not a provider-wide support promise:
 
 | SQL Server/SSIS version | Initial position | Required evidence before claiming support |
 | --- | --- | --- |
 | SQL Server 2022 / SSIS 16.x | MVP reference environment | Full discovery, execution, cancellation, diagnostics, artifact retrieval, and parser fixture suite. |
 | SQL Server 2019 / SSIS 15.x | Compatibility target | Same provider integration suite plus format-specific fixtures. |
-| SQL Server 2025 / SSIS 17.x | Compatibility target after current-driver/API validation | Same suite, with explicit review of changed catalog/DTSX behavior. |
+| SQL Server 2025 / SSIS 17.x | A-10 validation boundary supported against SQL Server 2025 RTM (`17.0.1000.7`) | Discovery, execution, cancellation, diagnostics, artifact retrieval, and parsing still require their own evidence, including explicit review of changed catalog/DTSX behavior. |
 | SQL Server 2017 and earlier | Not initially claimed | Add only through an explicit supported-version change and dedicated fixtures/environments. |
+
+The SQL Server 2025 claim above is deliberately limited to the implemented A-10 connection, authentication, public-catalog validation, and capability-assessment path. All SQL Server 17.x builds are eligible for that validation path subject to its live version and public-catalog compatibility checks; the representative build independently verified so far is SQL Server 2025 RTM `17.0.1000.7`. Other 17.x builds have not been independently verified. This is not provider-wide or runtime certification and does not cover unobserved definition formats. SQL Server 2019 and 2022 remain unverified compatibility targets.
 
 At connection and artifact-read time, the provider must detect known version facts and reject unsupported combinations clearly. It must not silently parse an unknown format as a known one. Unsupported static parsing need not block provider-native execution when the SQL Server itself supports the package; capability availability must make that distinction visible.
 

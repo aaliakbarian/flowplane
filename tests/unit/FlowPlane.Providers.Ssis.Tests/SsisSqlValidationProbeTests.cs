@@ -82,7 +82,7 @@ public sealed class SsisSqlValidationProbeTests
     }
 
     [Fact]
-    public async Task Observed_definition_formats_preserve_capabilities_while_server_remains_unverified()
+    public async Task Supported_server_with_observed_definition_formats_succeeds_with_available_capabilities()
     {
         var executor = new StubSqlExecutor(
             MasterFacts("17.0.1000.7", 1),
@@ -97,10 +97,10 @@ public sealed class SsisSqlValidationProbeTests
             "secret".AsMemory(),
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(ProviderValidationOutcome.Failed, result.Outcome);
+        Assert.Equal(ProviderValidationOutcome.Succeeded, result.Outcome);
         Assert.Contains(result.Checks, check =>
-            check.Code == "ssis.server-version.unverified" &&
-            check.Status == ProviderValidationCheckStatus.Failed);
+            check.Code == "ssis.server-version.supported" &&
+            check.Status == ProviderValidationCheckStatus.Succeeded);
         Assert.Contains(result.Checks, check =>
             check.Code == "ssis.catalog.surface-compatible" &&
             check.Status == ProviderValidationCheckStatus.Succeeded);
@@ -196,8 +196,10 @@ public sealed class SsisSqlValidationProbeTests
             "secret".AsMemory(),
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(ProviderValidationOutcome.Failed, result.Outcome);
-        Assert.Contains(result.Checks, check => check.Code == "ssis.server-version.unverified");
+        Assert.Equal(ProviderValidationOutcome.Succeeded, result.Outcome);
+        Assert.Contains(result.Checks, check =>
+            check.Code == "ssis.server-version.supported" &&
+            check.Status == ProviderValidationCheckStatus.Succeeded);
         Assert.Contains(result.Checks, check =>
             check.Code == "ssis.definition-format.unsupported" &&
             check.Status == ProviderValidationCheckStatus.Failed);
