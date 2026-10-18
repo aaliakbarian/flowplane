@@ -62,10 +62,14 @@ When the SQL Server endpoint is reachable from Docker, run the same suite in the
 
 ```bash
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  --env HOME=/tmp/flowplane-home \
+  --env DOTNET_CLI_HOME=/tmp/flowplane-home \
+  --env NUGET_PACKAGES=/tmp/flowplane-nuget \
   --env-file tests/integration/ssis/.env \
   --mount type=bind,source="$PWD",target=/src \
   --workdir /src \
-  mcr.microsoft.com/dotnet/sdk:10.0.401-noble \
+  mcr.microsoft.com/dotnet/sdk:10.0.402-noble \
   dotnet test tests/integration/FlowPlane.Ssis.Integration.Tests/FlowPlane.Ssis.Integration.Tests.csproj --nologo -m:1
 ```
 

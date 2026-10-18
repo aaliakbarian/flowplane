@@ -8,6 +8,8 @@ The supported contributor baseline is WSL2 Ubuntu 24.04 with Git/SSH, .NET 10, D
 
 Repository source stays in the WSL filesystem. Frontend tooling and service dependencies run in containers; backend restore, build, tests, and debugging use the repository-pinned WSL .NET SDK.
 
+`global.json` is the authoritative minimum SDK policy. Install SDK `10.0.113` or a compatible later .NET 10 feature band directly in WSL before using the native backend workflow, and confirm it with `dotnet --version`. If Ubuntu's configured package sources have not yet published a compatible serviced SDK, use `mcr.microsoft.com/dotnet/sdk:10.0.402-noble` for interim verification; do not treat native WSL verification as complete until the required SDK is installed. The container is an interim toolchain path, not a Dev Container, and Docker Desktop remains unnecessary.
+
 ## Contributor setup
 
 Follow the [root quick start](README.md#development-quick-start) to create the ignored `deploy/compose/.env`, build and test the backend, start the development stack, apply the baseline migration, and verify health. Configuration in `.env.example` is local-development-only. Treat database passwords, Keycloak bootstrap credentials, browser test credentials, and tokens as secrets even in development; do not commit or log overrides.

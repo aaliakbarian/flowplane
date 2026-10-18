@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0.401-noble AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.402-noble AS build
 WORKDIR /src
 
 COPY global.json Directory.Build.props ./
@@ -20,7 +20,7 @@ RUN dotnet publish src/backend/FlowPlane.Api/FlowPlane.Api.csproj \
     --output /app/publish \
     /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.12-noble AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.13-noble AS final
 WORKDIR /app
 
 COPY --from=build /app/publish .
