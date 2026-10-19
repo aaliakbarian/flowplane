@@ -610,19 +610,31 @@ The Linux/container-compatible backend validates a supported external SSISDB con
 
 ### Goal and scope
 
-Discover visible SSISDB folders, projects, packages, package entry-point state, compatibility facts, parameter metadata, and relevant environment references through public catalog views. Map directly executable packages to provider-qualified `NativeDefinitionReference` candidates while preserving the native folder/project/package hierarchy.
+Scan every currently visible SSISDB folder/project and all approved current package, parameter and environment-reference metadata through public catalog views. Use internal project batches (`MaxProjectsPerBatch`, tentatively 20) and bounded streaming buffers with backpressure, without SSISDB result pagination, a fixed total catalog-size limit or parameter/reference truncation. Preserve native identities and current active revision observations; only compatible entry-point packages become executable candidates. Unknown-format definitions remain observed metadata with explicit candidate ineligibility.
 
-Apply explicit query/result bounds. Discovery must be read-only and must not retrieve ISPAC artifacts.
+Persist the current observations in FlowPlane PostgreSQL using unpublished staging generations and atomic publication after complete scan verification. SSISDB remains authoritative, and a failed/interrupted refresh retains the previous complete inventory. Scan completeness is separate from definition compatibility. Discovery remains read-only against SSISDB, creates no Pipeline and retrieves no ISPAC.
+
+This approved refinement supersedes the earlier total-result bounds and inventory-persistence exclusion. It is decomposed under parent [issue #12](https://github.com/aaliakbarian/flowplane/issues/12); the detailed [A-11a/A-11b implementation plan](a11-discovery-implementation-plan.md) records RED/GREEN steps and the existing-work preservation review. GitHub remains the live tracker; the existing uncommitted implementation is not completed acceptance of the refined scope.
+
+| Child task | Planning status | Dependency | Deliverable |
+| --- | --- | --- | --- |
+| [A-11a / #14 — Complete read-only SSIS scan](https://github.com/aaliakbarian/flowplane/issues/14) | Planned | A-10 and implementation approval | Complete streaming observations and terminal scan summary |
+| [A-11b / #15 — Current discovery inventory publication](https://github.com/aaliakbarian/flowplane/issues/15) | Planned; blocked by A-11a | Reviewed A-11a contract and acceptance; migration/security review | Durable credential-scoped inventory with atomic publication |
+
+The order is A-10 -> A-11a -> A-11b -> parent A-11 acceptance -> A-12. This documentation/issue reconciliation authorizes neither implementation nor a commit.
 
 ### Dependencies
 
 - A-10 complete and reviewed.
 - Representative real-SSISDB fixtures include entry-point and non-entry-point packages, parameters, environment references, permission filtering, and supported/unsupported compatibility facts.
+- A-11b may not begin until A-11a is reviewed and accepted. A-12 remains dependent on both children and parent A-11 acceptance.
+- External fixture build/deployment/catalog configuration requires separate explicit review and authorization; missing fixture evidence blocks real acceptance.
 
 ### Explicit non-goals
 
 - automatic or manual `Pipeline` registration;
-- synchronization of all visible SSISDB objects into PostgreSQL;
+- copying SSISDB beyond the approved current discovery observations, or treating PostgreSQL as native authority;
+- historical native-version browsing/restoration/comparison or old ISPAC retrieval;
 - SSIS execution;
 - artifact retrieval or DTSX parsing; and
 - graph projection.
@@ -633,25 +645,34 @@ Apply explicit query/result bounds. Discovery must be read-only and must not ret
 - native hierarchy and identity mappings;
 - discovery candidate and provider-extension mappings;
 - structured discovery errors;
-- unit mapping tests; and
+- narrow provider-independent observation/staging contracts and refresh orchestration;
+- PostgreSQL current-inventory generations, migration, atomic publication and access-context fencing;
+- unit mapping, complete-scan, failure/security and PostgreSQL publication tests; and
 - real-SSISDB discovery integration tests.
 
 ### RED verification
 
 - Mapping tests fail for duplicate package names in different native paths, non-entry-point filtering, permission-filtered visibility, sensitive parameters, environment references, and unsupported compatibility facts.
 - Discovery cannot distinguish executable candidates from non-entry-point project contents.
+- The current buffered implementation truncates above its candidate/parameter/reference bounds and omits incompatible/non-entry-point inventory observations.
+- No durable discovery generation can preserve a previous complete inventory after failure, fence obsolete publication or protect cached observations after access changes.
 
 ### GREEN verification
 
-- Unit tests pass for native hierarchy/reference mapping, entry-point eligibility, parameter/environment metadata, bounds, and safe error classification.
+- Unit tests pass for native identity, independent format/entry-point eligibility, complete metadata association, project batching, bounded buffers/backpressure and safe error/cancellation behavior.
 - Real-SSISDB tests return visible entry-point packages as executable candidates and do not present non-entry-point packages as directly executable.
 - Results preserve provider instance, folder, project, package, and applicable version/format facts without making those fields universal core properties.
 - Sensitive parameter or environment values remain masked and absent from logs and results.
 - Discovery performs no provider mutation and creates no `Pipeline` record.
+- Batch size 1 and larger sizes yield equivalent complete inventories, including empty scans, large projects and more data than the superseded total limits.
+- Unknown-format definitions are persisted as observed/ineligible; `Partial` compatibility never conceals incomplete scan coverage.
+- Project revision/metadata and final manifest checks detect observed changes without claiming an SSISDB snapshot or changing isolation settings. Unchanged LSN never suppresses fresh binding/reference reads.
+- PostgreSQL tests prove atomic publication, previous-inventory preservation after interruption, concurrency/credential fencing and no stale disclosure after lost access. Not observed never means proven deletion.
+- A-11a and A-11b real WSL/non-root SDK-container acceptance has zero failed/skipped tests; all six A-10 regression scenarios remain green.
 
 ### Exit criteria
 
-The SSIS provider returns a bounded, structured, permission-filtered list of executable package candidates with stable provider-qualified native references and no registration side effect.
+Both child tasks are reviewed and accepted. Each invocation scans all visible projects and approved current metadata, then publishes a complete credential-scoped observational inventory atomically; compatible entry points retain stable provider-qualified references. Failed/interrupted refreshes preserve the previous complete inventory without authorizing stale disclosure. No registration, native history management or SSIS mutation is introduced.
 
 ## A-12 — Thin configuration/discovery API and UI
 

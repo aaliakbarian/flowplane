@@ -158,11 +158,10 @@ This matrix applies ADR-0004 to SSIS. It is not a universal FlowPlane capability
 | `catalog.folders` | Enumerate visible SSISDB folders. |
 | `catalog.projects` | Enumerate visible projects, format version, deployment timestamps, validation information, and current `object_version_lsn`. |
 | `catalog.packages` | Enumerate packages, GUID/version metadata, `package_format_version`, and `entry_point`. |
-| `catalog.object_parameters` | Discover project/package parameter metadata, types, required/sensitive flags, default/reference metadata. |
-| `catalog.environments` | Enumerate environments visible to the principal. |
+| `catalog.object_parameters` | Discover project/package parameter names, types, required/sensitive flags, assignment state and referenced-variable names; never select parameter values. |
 | `catalog.environment_references` | Discover project-to-environment references and relative/absolute reference type. |
-| `catalog.environment_variables` | Inspect permitted variable metadata where required; sensitive values must remain masked. |
-| `catalog.object_versions` | Inspect retained project-version identities where useful; Microsoft currently documents project versions in this view. |
+
+The A-11 scan does not query `catalog.environment_variables`, parameter default/value columns, execution parameter values or `catalog.object_versions`. It inventories approved current metadata, not resolved values or retained native history.
 
 ```text
 Folder
@@ -174,9 +173,33 @@ Folder
 
 Discovery results preserve the provider instance, folder, project, and package identity plus useful native facts such as package GUID, package version fields, `entry_point`, package/project format versions, and project `object_version_lsn`. Numeric catalog IDs may assist queries but must not be assumed to be stable across every redeployment or migration.
 
-Only packages that SSIS marks as entry points can be offered as directly executable targets. Non-entry-point packages may still be shown as native project contents when useful, but must not be presented as independently executable.
+Only compatible packages that SSIS marks as entry points can be offered as directly executable targets. Non-entry-point packages and unknown-format projects/packages remain observed native contents with explicit candidate ineligibility. Project and package format recognition remain independent of SQL Server major-version policy; unknown formats must not make visible projects disappear.
 
-Discovery produces candidates; it does not synchronize every visible object into PostgreSQL and does not create `Pipeline` records automatically. Query batching, pagination/bounds, refresh, and synchronization policy remain implementation questions.
+### Complete scan and internal batching
+
+**Approved A-11 product direction:** One invocation scans every currently visible folder/project and all approved current package, project/package parameter and environment-reference metadata. There is no user/provider-facing SSISDB pagination or fixed total catalog-size limit. Process a configurable number of projects per SQL batch (`MaxProjectsPerBatch`, tentatively 20), continuing until every manifest project has been processed. No parameter or environment-reference collection is silently truncated.
+
+Stream rows through bounded buffers and an awaited staging sink with backpressure, including when one project has unusually large metadata. Read project parameters and environment references once per project; associate package parameters only with their package. Do not buffer the entire catalog, construct an unbounded project JSON document, or multiply metadata through joins. Timeouts, cancellation, database/storage failures and memory pressure must fail explicitly rather than publish a shortened inventory. A long refresh has an operation lifetime independent of a future HTTP request; HTTP hosting belongs to A-12 and no scheduler/queue is selected here.
+
+### Current inventory and ownership
+
+**Approved A-11 product direction:** FlowPlane PostgreSQL retains current discovery observations for each ProviderInstance. SSISDB remains authoritative. Discovery does not create `Pipeline` records, retrieve artifacts or manage historical SSIS versions. The previous exclusion of discovery-inventory persistence is superseded for this narrowly approved metadata set.
+
+Application owns a narrow observation/staging boundary, refresh orchestration and completion/publication semantics. SSIS owns native keys, metadata schemas, associations, SQL, compatibility and codecs. Infrastructure persists validated versioned documents without an SSIS project dependency. The common envelope carries only provider-instance context, opaque provider-owned observation identity, approved metadata and optional executable NativeDefinitionReference; it is not a universal folder/project hierarchy, Node/Edge model or plugin SDK.
+
+Use unpublished staging generations and atomically change the active inventory only after all projects and consistency checks complete. Compare current observations with the prior completed inventory without using unchanged fingerprints to skip fresh external reads. Record observation/refresh timestamps, completion status and source configuration/access context. Keep scan completeness separate from candidate compatibility: a completed scan with ineligible unknown formats may be `Partial`, but an unread project prevents publication. A successful empty scan is publishable.
+
+Failure, timeout, cancellation or process interruption must retain the previous complete inventory. Incomplete staging is never current. Fence publication against ProviderInstance configuration/credential changes and competing refreshes; do not hold a PostgreSQL transaction throughout the external scan. Clean up superseded or abandoned generations without introducing native-version history browsing. Concrete persistence mappings and migration review belong to A-11b.
+
+### Consistency and credential-scoped visibility
+
+Bracket each project read with active identity/revision checks and verify metadata fingerprints to detect observed rebinding/reference changes. Recheck the visible project manifest before publication. Detected changes invalidate the refresh without an automatic retry loop. These checks describe observations over a scan interval; they do not guarantee a transactionally consistent SSISDB snapshot, eliminate change-and-reversion races, or require changing SSISDB isolation configuration.
+
+Treat stored metadata as observations under a particular ProviderInstance credential/access context. A project no longer visible is not proven deleted. Retain last-known observations explicitly as stale/not currently observed and exclude them from current candidates. Credential changes invalidate the serving context; unchanged configuration or principal identity does not prove unchanged SSISDB permissions. A failed refresh, authentication failure or revoked access must never trigger disclosure of cached payloads. Future reads require FlowPlane authorization plus fresh native-visibility validation; A-11 adds no caller-facing cache-read endpoint or final RBAC model.
+
+### Delivery dependency
+
+Parent [A-11 / #12](https://github.com/aaliakbarian/flowplane/issues/12) remains in Milestone A and contains [A-11a / #14](https://github.com/aaliakbarian/flowplane/issues/14) (complete read-only scan) followed by [A-11b / #15](https://github.com/aaliakbarian/flowplane/issues/15) (current inventory publication). A-11b is blocked by A-11a; both require review and representative real evidence before A-12. The [A-11 implementation plan](../../development/milestones/a11-discovery-implementation-plan.md) defines the RED/GREEN tasks, preservation of current uncommitted work and explicit implementation/commit gates.
 
 ## 8. Registration boundary
 
@@ -626,6 +649,8 @@ Iteration monitoring depends on retained/native telemetry and reliable correlati
 
 `catalog.projects.object_version_lsn` identifies the current deployed project version; Microsoft notes that this number is not guaranteed to be sequential.
 
+For A-11, retain that active LSN and current package revision facts as observations only. Active does not mean historically newest after a restore. Always refresh approved parameter bindings and environment references, even when the LSN is unchanged. Do not enumerate `catalog.object_versions`, browse/restore old versions, compare historical versions or retrieve old ISPACs. The graph-cache recommendation below belongs to later artifact/graph work.
+
 **Technical recommendation:** Cache parsed artifacts/projections conceptually by:
 
 ```text
@@ -695,6 +720,8 @@ existing SSISDB project
 `catalog.deploy_project` creates or updates a project and returns a native operation identity. `catalog.deploy_packages` supports incremental package deployment/update in supported SSIS versions and likewise exposes an operation identity. Deployment is observable through SSISDB operations/messages; native validation and deployment errors remain provider-native facts.
 
 Deployment permissions are broader than ordinary read/execute permissions and should be assigned only to a separate deployment capability/principal when enabled. This section does not define a generic FlowPlane `Deployment` domain or approval/promotion workflow.
+
+**Future authoring/deployment requirement, not A-11 functionality:** Record the exact native project identity and active revision used as an editing baseline. Before deployment, compare it with the live SSISDB active revision. An external change must block automatic replacement and require an explicit authorized user decision. The gap between preflight and `catalog.deploy_project` remains a race: the documented procedure has no expected-revision argument, so a successful preflight is not evidence of atomic conflict prevention. The future deployment design must resolve that risk before making stronger guarantees; A-11 implements no deployment, overwrite or approval UI.
 
 ## 35. Future FlowPlane SSIS designer compatibility
 
@@ -778,7 +805,7 @@ Downloaded artifacts may contain credentials or connection metadata even when Fl
 **Technical recommendations:**
 
 - batch hierarchy/metadata queries and avoid per-row round trips where public views allow it;
-- apply bounds/paging to discovery, messages, and execution history;
+- use internal project batches and streaming backpressure for complete current discovery, without total catalog/metadata truncation; keep message and execution-history bounds as separate later designs;
 - do not retrieve an ISPAC during ordinary discovery or execution;
 - retrieve artifacts only for graph inspection/refresh, then cache projections by project revision;
 - poll active executions more frequently than old terminal executions, with configurable cadence and jitter;
@@ -788,7 +815,7 @@ Downloaded artifacts may contain credentials or connection metadata even when Fl
 - avoid requesting Verbose logging or Data Flow telemetry without explicit need; and
 - bound concurrent project downloads and parsing work.
 
-No numeric thresholds, cache technology, or polling scheduler is chosen here.
+Discovery's provisional batch/timeout settings are reviewed in the A-11 implementation plan. No graph-cache technology, polling scheduler or unrelated numeric thresholds are chosen here.
 
 ## 40. Testing strategy
 
