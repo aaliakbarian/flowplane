@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<DTS:Executable xmlns:DTS="www.microsoft.com/SqlServer/Dts"
+  DTS:refId="Package"
+  DTS:CreationDate="10/18/2026 12:00:00 PM"
+  DTS:CreationName="Microsoft.Package"
+  DTS:CreatorComputerName="FLOWPLANE"
+  DTS:CreatorName="FlowPlane"
+  DTS:Description="FlowPlane A-11 harmless executable discovery fixture"
+  DTS:DTSID="{673BBFC0-0CF5-4B62-BDCB-0B805F4DDDC6}"
+  DTS:ExecutableType="Microsoft.Package"
+  DTS:LastModifiedProductVersion="17.0.1000.7"
+  DTS:LocaleID="1033"
+  DTS:ObjectName="EntryPoint"
+  DTS:ProtectionLevel="0"
+  DTS:VersionGUID="{5370CA1D-C879-45AD-89ED-3B191F88AD11}">
+  <DTS:Property DTS:Name="PackageFormatVersion">8</DTS:Property>
+  <DTS:PackageParameters>
+    <DTS:PackageParameter
+      DTS:CreationName=""
+      DTS:DataType="3"
+      DTS:Description="Harmless package-scoped discovery metadata"
+      DTS:DTSID="{7D25118A-6D16-4738-A075-D814ED0146BF}"
+      DTS:ObjectName="BatchSize"
+      DTS:Required="False"
+      DTS:Sensitive="False">
+      <DTS:Property DTS:DataType="3" DTS:Name="ParameterValue">25</DTS:Property>
+    </DTS:PackageParameter>
+  </DTS:PackageParameters>
+  <DTS:Variables />
+  <DTS:Executables />
+</DTS:Executable>

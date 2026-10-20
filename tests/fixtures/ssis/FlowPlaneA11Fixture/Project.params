@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<SSIS:Parameters xmlns:SSIS="www.microsoft.com/SqlServer/SSIS">
+  <SSIS:Parameter SSIS:Name="RequiredProjectInput">
+    <SSIS:Properties>
+      <SSIS:Property SSIS:Name="ID">{47BD4AF7-B096-4E89-BE49-CB51E807C857}</SSIS:Property>
+      <SSIS:Property SSIS:Name="CreationName" />
+      <SSIS:Property SSIS:Name="Description">Harmless required project metadata</SSIS:Property>
+      <SSIS:Property SSIS:Name="IncludeInDebugDump">0</SSIS:Property>
+      <SSIS:Property SSIS:Name="Required">1</SSIS:Property>
+      <SSIS:Property SSIS:Name="Sensitive">0</SSIS:Property>
+      <SSIS:Property SSIS:Name="Value">fixture-required-input</SSIS:Property>
+      <SSIS:Property SSIS:Name="DataType">18</SSIS:Property>
+    </SSIS:Properties>
+  </SSIS:Parameter>
+  <SSIS:Parameter SSIS:Name="SensitiveEnvironmentInput">
+    <SSIS:Properties>
+      <SSIS:Property SSIS:Name="ID">{66162BAA-3566-487B-BFF7-8B29C1A9F29E}</SSIS:Property>
+      <SSIS:Property SSIS:Name="CreationName" />
+      <SSIS:Property SSIS:Name="Description">Sensitive metadata configured by environment reference after deployment</SSIS:Property>
+      <SSIS:Property SSIS:Name="IncludeInDebugDump">0</SSIS:Property>
+      <SSIS:Property SSIS:Name="Required">1</SSIS:Property>
+      <SSIS:Property SSIS:Name="Sensitive">1</SSIS:Property>
+      <SSIS:Property SSIS:Name="DataType">18</SSIS:Property>
+    </SSIS:Properties>
+  </SSIS:Parameter>
+</SSIS:Parameters>

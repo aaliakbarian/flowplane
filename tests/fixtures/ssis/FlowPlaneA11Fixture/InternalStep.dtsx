@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<DTS:Executable xmlns:DTS="www.microsoft.com/SqlServer/Dts"
+  DTS:refId="Package"
+  DTS:CreationDate="10/18/2026 12:00:00 PM"
+  DTS:CreationName="Microsoft.Package"
+  DTS:CreatorComputerName="FLOWPLANE"
+  DTS:CreatorName="FlowPlane"
+  DTS:Description="FlowPlane A-11 harmless non-entry-point discovery fixture"
+  DTS:DTSID="{61368EBA-4214-4EA4-A946-2B50E91D688E}"
+  DTS:ExecutableType="Microsoft.Package"
+  DTS:LastModifiedProductVersion="17.0.1000.7"
+  DTS:LocaleID="1033"
+  DTS:ObjectName="InternalStep"
+  DTS:ProtectionLevel="0"
+  DTS:VersionGUID="{9724E986-B6B3-4ECF-A0F2-EFB5CE9CFC5B}">
+  <DTS:Property DTS:Name="PackageFormatVersion">8</DTS:Property>
+  <DTS:Variables />
+  <DTS:Executables />
+</DTS:Executable>

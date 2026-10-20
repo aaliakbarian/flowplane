@@ -12,9 +12,24 @@ internal static class SsisConnectionSettingsFactory
         string catalog,
         SsisValidationOptions options)
     {
+        ArgumentNullException.ThrowIfNull(options);
+        return Create(configuration, password, catalog, options.ConnectionTimeoutSeconds);
+    }
+
+    public static SqlConnectionStringBuilder Create(
+        SsisProviderConfiguration configuration,
+        ReadOnlyMemory<char> password,
+        string catalog,
+        int connectionTimeoutSeconds)
+    {
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentException.ThrowIfNullOrWhiteSpace(catalog);
-        ArgumentNullException.ThrowIfNull(options);
+        if (connectionTimeoutSeconds <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(connectionTimeoutSeconds),
+                "The connection timeout must be positive.");
+        }
 
         return new SqlConnectionStringBuilder
         {
@@ -27,7 +42,7 @@ internal static class SsisConnectionSettingsFactory
             TrustServerCertificate = configuration.TrustServerCertificate,
             PersistSecurityInfo = false,
             Pooling = false,
-            ConnectTimeout = options.ConnectionTimeoutSeconds,
+            ConnectTimeout = connectionTimeoutSeconds,
             ApplicationName = "FlowPlane",
         };
     }

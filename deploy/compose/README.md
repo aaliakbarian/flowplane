@@ -36,6 +36,8 @@ sh tests/container/a07-production-frontend.sh
 
 As of A-05, backend readiness includes PostgreSQL connectivity while liveness remains process-only. Compose supplies separate `FlowPlane__PostgreSql__*` configuration values so Npgsql can safely construct the connection string even when credentials contain connection-string delimiters. Credentials are not stored in source configuration or written to logs.
 
+The backend binds complete-scan SSIS settings from the provider-owned `FlowPlane:Ssis` section. Compose exposes `FLOWPLANE_SSIS_MAX_PROJECTS_PER_BATCH` (20), `FLOWPLANE_SSIS_CONNECTION_TIMEOUT_SECONDS` (5), `FLOWPLANE_SSIS_COMMAND_TIMEOUT_SECONDS` (15), and `FLOWPLANE_SSIS_OVERALL_TIMEOUT_SECONDS` (1800). These are operator settings, not ProviderInstance metadata. Project batching and bounded streaming buffers do not cap total catalog size or truncate project metadata. The old MaxCandidates/MaxParametersPerCandidate/MaxEnvironmentReferencesPerProject configuration keys are rejected; remove their retired overrides when updating local configuration. No SSIS server is required for startup. See [SSIS Provider Integration Testing](../../docs/development/ssis-integration-testing.md#a-11-discovery-configuration) for ranges, provisional observation delivery and consistency/failure semantics.
+
 ## Optional built-in provider-secret protection
 
 The default stack still boots without secret-protection root material. In that mode PostgreSQL, OIDC, health, and provider-independent behavior remain available, while `flowplane:` secret create, replace, delete, and resolve operations return a safe protection-unavailable error. Independent `env:` references remain a development/testing convenience and are never persisted by FlowPlane.

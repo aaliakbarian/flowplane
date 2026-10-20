@@ -12,6 +12,9 @@ public sealed class SsisFailureClassifierTests
     [InlineData(4060, 1, 5)]
     [InlineData(916, 1, 5)]
     [InlineData(229, 2, 6)]
+    [InlineData(229, 3, 6)]
+    [InlineData(207, 3, 8)]
+    [InlineData(208, 3, 8)]
     [InlineData(-2, 0, 2)]
     public void Documented_sql_numbers_map_without_native_message_text(
         int number,

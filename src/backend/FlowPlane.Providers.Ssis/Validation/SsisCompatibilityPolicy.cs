@@ -37,6 +37,12 @@ internal static class SsisCompatibilityPolicy
     public static bool HasUnknownPackageFormat(IEnumerable<int> formats) =>
         HasUnknownFormat(formats, RecognizedPackageFormats);
 
+    public static bool IsRecognizedProjectFormat(int format) =>
+        RecognizedProjectFormats.Contains(format);
+
+    public static bool IsRecognizedPackageFormat(int format) =>
+        RecognizedPackageFormats.Contains(format);
+
     private static bool HasUnknownFormat(
         IEnumerable<int> formats,
         IReadOnlySet<int> recognizedFormats)

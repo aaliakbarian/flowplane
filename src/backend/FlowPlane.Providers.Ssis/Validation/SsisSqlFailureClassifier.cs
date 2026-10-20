@@ -8,6 +8,7 @@ internal enum SsisValidationStage
     MasterConnection,
     CatalogConnection,
     CatalogQuery,
+    DiscoveryQuery,
 }
 
 internal enum SsisFailureKind
@@ -20,6 +21,7 @@ internal enum SsisFailureKind
     CatalogInaccessible,
     PermissionDenied,
     Unexpected,
+    CatalogSurfaceIncompatible,
 }
 
 internal sealed record SsisSqlFailure(int? Number, Exception? Exception)
@@ -64,8 +66,10 @@ internal static class SsisSqlFailureClassifier
                 SsisFailureKind.AuthenticationRejected,
             4060 or 916 when stage != SsisValidationStage.MasterConnection =>
                 SsisFailureKind.CatalogInaccessible,
-            229 when stage == SsisValidationStage.CatalogQuery =>
+            229 when stage is SsisValidationStage.CatalogQuery or SsisValidationStage.DiscoveryQuery =>
                 SsisFailureKind.PermissionDenied,
+            207 or 208 when stage == SsisValidationStage.DiscoveryQuery =>
+                SsisFailureKind.CatalogSurfaceIncompatible,
             _ => SsisFailureKind.Unexpected,
         };
     }

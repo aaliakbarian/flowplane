@@ -96,6 +96,10 @@ services:
       FlowPlane__PostgreSql__Database: "${FLOWPLANE_POSTGRES_DB:-flowplane}"
       FlowPlane__PostgreSql__Username: "${FLOWPLANE_POSTGRES_USER:-flowplane}"
       FlowPlane__PostgreSql__Password: "${FLOWPLANE_POSTGRES_PASSWORD:-flowplane-local-development-only}"
+      FlowPlane__Ssis__MaxProjectsPerBatch: "${FLOWPLANE_SSIS_MAX_PROJECTS_PER_BATCH:-20}"
+      FlowPlane__Ssis__ConnectionTimeoutSeconds: "${FLOWPLANE_SSIS_CONNECTION_TIMEOUT_SECONDS:-5}"
+      FlowPlane__Ssis__CommandTimeoutSeconds: "${FLOWPLANE_SSIS_COMMAND_TIMEOUT_SECONDS:-15}"
+      FlowPlane__Ssis__OverallTimeoutSeconds: "${FLOWPLANE_SSIS_OVERALL_TIMEOUT_SECONDS:-1800}"
     depends_on:
       postgres:
         condition: service_healthy

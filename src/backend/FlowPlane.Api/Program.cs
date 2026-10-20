@@ -3,6 +3,7 @@ using System.Security.Claims;
 using FlowPlane.Api.Authentication;
 using FlowPlane.Infrastructure;
 using FlowPlane.Providers.Ssis;
+using FlowPlane.Providers.Ssis.Discovery;
 using FlowPlane.Providers.Ssis.Validation;
 
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -20,12 +21,18 @@ builder.Logging.AddJsonConsole(options =>
 
 builder.Services.AddFlowPlanePostgreSql(builder.Configuration);
 builder.Services.AddFlowPlaneAuthentication(builder.Configuration, builder.Environment);
+SsisDiscoveryOptions.RejectObsoleteKeys(builder.Configuration
+    .GetSection(SsisDiscoveryOptions.SectionName).GetChildren().Select(section => section.Key));
+var ssisDiscoveryOptions = builder.Configuration
+    .GetSection(SsisDiscoveryOptions.SectionName)
+    .Get<SsisDiscoveryOptions>() ?? new SsisDiscoveryOptions();
 builder.Services.AddFlowPlaneSsisValidation(
     builder.Environment.IsDevelopment(),
     new SsisValidationOptions(
         builder.Configuration.GetValue("FlowPlane:Ssis:Validation:ConnectionTimeoutSeconds", 5),
         builder.Configuration.GetValue("FlowPlane:Ssis:Validation:CommandTimeoutSeconds", 10),
-        builder.Configuration.GetValue("FlowPlane:Ssis:Validation:OverallTimeoutSeconds", 30)));
+        builder.Configuration.GetValue("FlowPlane:Ssis:Validation:OverallTimeoutSeconds", 30)),
+    ssisDiscoveryOptions);
 builder.Services
     .AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"]);
