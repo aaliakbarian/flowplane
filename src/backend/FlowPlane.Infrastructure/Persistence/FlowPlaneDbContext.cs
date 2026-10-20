@@ -1,4 +1,5 @@
 using FlowPlane.Domain.Providers;
+using FlowPlane.Infrastructure.Persistence.Discovery;
 
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -15,10 +16,14 @@ public sealed class FlowPlaneDbContext(DbContextOptions<FlowPlaneDbContext> opti
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     internal DbSet<SecretRecord> SecretRecords => Set<SecretRecord>();
+    internal DbSet<DiscoveryState> DiscoveryStates => Set<DiscoveryState>();
+    internal DbSet<DiscoveryGeneration> DiscoveryGenerations => Set<DiscoveryGeneration>();
+    internal DbSet<DiscoveryObservationRecord> DiscoveryObservations => Set<DiscoveryObservationRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
+        DiscoveryModelConfiguration.Configure(modelBuilder);
 
         modelBuilder.Entity<DataProtectionKey>(builder =>
         {

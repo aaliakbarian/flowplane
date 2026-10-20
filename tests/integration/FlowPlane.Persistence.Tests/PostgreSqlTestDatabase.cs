@@ -60,9 +60,13 @@ internal sealed class PostgreSqlTestDatabase : IAsyncDisposable
         return new PostgreSqlTestDatabase(databaseName, connectionString, adminConnection);
     }
 
-    public ServiceProvider CreateServices(string? certificatePath)
+    public ServiceProvider CreateServices(string? certificatePath, Action<IServiceCollection>? configure = null)
+        => CreateServicesForConnection(ConnectionString, certificatePath, configure);
+
+    internal static ServiceProvider CreateServicesForConnection(string connectionString, string? certificatePath,
+        Action<IServiceCollection>? configure = null)
     {
-        var builder = new NpgsqlConnectionStringBuilder(ConnectionString);
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
         var values = new Dictionary<string, string?>
         {
             ["FlowPlane:PostgreSql:Host"] = builder.Host,
@@ -78,6 +82,7 @@ internal sealed class PostgreSqlTestDatabase : IAsyncDisposable
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddFlowPlanePostgreSql(configuration);
+        configure?.Invoke(services);
         return services.BuildServiceProvider(validateScopes: true);
     }
 

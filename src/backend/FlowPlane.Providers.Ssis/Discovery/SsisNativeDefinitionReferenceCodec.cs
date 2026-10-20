@@ -37,7 +37,7 @@ internal sealed class SsisNativeDefinitionReferenceCodec : NativeDefinitionRefer
     public SsisNativeDefinitionIdentity Decode(NativeDefinitionReference reference)
     {
         ArgumentNullException.ThrowIfNull(reference);
-        if (reference.ProviderType != SsisProviderConfigurationCodec.SsisProviderType ||
+        if (!reference.ProviderType.Equals(SsisProviderConfigurationCodec.SsisProviderType) ||
             !string.Equals(reference.SchemaId, SchemaId, StringComparison.Ordinal))
         {
             throw new ArgumentException("The native definition reference is not an SSIS reference.", nameof(reference));

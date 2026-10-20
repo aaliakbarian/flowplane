@@ -12,6 +12,18 @@ namespace FlowPlane.Providers.Ssis.Tests;
 public sealed class SsisProviderDiscoveryCapabilityTests
 {
     [Fact]
+    public async Task Rehydrated_provider_type_is_discovered_by_its_canonical_value()
+    {
+        var original = Instance();
+        var rehydrated = ProviderInstance.Create(original.Id, ProviderType.Parse("ssis"), original.DisplayName,
+            true, original.Configuration, original.SecretReference, DateTimeOffset.UtcNow);
+        var result = await Create(new StubDiscoveryQuery(new SsisDiscoveryScannerTests.GeneratedSession(1)))
+            .ScanAsync(rehydrated, Sink(), TestContext.Current.CancellationToken);
+        Assert.True(result.ScanCompleted);
+        Assert.Equal(ProviderDiscoveryOutcome.Succeeded, result.Outcome);
+    }
+
+    [Fact]
     public async Task Supported_accessible_instance_returns_complete_streamed_observations()
     {
         var query = new StubDiscoveryQuery(new SsisDiscoveryScannerTests.GeneratedSession(2));

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 
 using FlowPlane.Api.Authentication;
+using FlowPlane.Application.Providers.DiscoveryInventory;
 using FlowPlane.Infrastructure;
 using FlowPlane.Providers.Ssis;
 using FlowPlane.Providers.Ssis.Discovery;
@@ -26,6 +27,13 @@ SsisDiscoveryOptions.RejectObsoleteKeys(builder.Configuration
 var ssisDiscoveryOptions = builder.Configuration
     .GetSection(SsisDiscoveryOptions.SectionName)
     .Get<SsisDiscoveryOptions>() ?? new SsisDiscoveryOptions();
+var inventoryOptions = (builder.Configuration.GetSection(DiscoveryInventoryOptions.SectionName)
+    .Get<DiscoveryInventoryOptions>() ?? new DiscoveryInventoryOptions()) with
+{
+    ScanTimeoutSeconds = ssisDiscoveryOptions.OverallTimeoutSeconds,
+};
+inventoryOptions.Validate();
+builder.Services.AddSingleton(inventoryOptions);
 builder.Services.AddFlowPlaneSsisValidation(
     builder.Environment.IsDevelopment(),
     new SsisValidationOptions(

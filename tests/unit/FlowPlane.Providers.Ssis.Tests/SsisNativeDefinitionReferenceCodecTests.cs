@@ -1,9 +1,28 @@
 using FlowPlane.Providers.Ssis.Discovery;
+using FlowPlane.Application.Providers;
+using FlowPlane.Domain.Providers;
 
 namespace FlowPlane.Providers.Ssis.Tests;
 
 public sealed class SsisNativeDefinitionReferenceCodecTests
 {
+    [Fact]
+    public void Rehydrated_provider_type_keeps_the_same_native_reference_identity()
+    {
+        var codec = new SsisNativeDefinitionReferenceCodec();
+        var identity = new SsisNativeDefinitionIdentity("Folder", "Project", "Package.dtsx");
+        var original = codec.Encode(FirstInstance, identity);
+        var rehydrated = new RehydratedCodec().Encode(original);
+        Assert.Equal(original, rehydrated);
+        Assert.Equal(identity, codec.Decode(rehydrated));
+    }
+
+    private sealed class RehydratedCodec : NativeDefinitionReferenceCodec
+    {
+        public NativeDefinitionReference Encode(NativeDefinitionReference reference) => CreateValidatedReference(
+            reference.ProviderInstanceId, ProviderType.Parse("ssis"), reference.SchemaId, reference.CanonicalJson);
+    }
+
     private static readonly Guid FirstInstance =
         Guid.Parse("018f8f55-82e7-734b-ab9a-a2d355bc9f6d");
 

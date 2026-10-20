@@ -32,7 +32,7 @@ internal sealed class SsisProviderInstanceValidator(
     {
         ArgumentNullException.ThrowIfNull(providerInstance);
 
-        if (providerInstance.ProviderType != ProviderType || !providerInstance.IsEnabled)
+        if (!providerInstance.ProviderType.Equals(ProviderType) || !providerInstance.IsEnabled)
         {
             return ConfigurationFailure("ssis.configuration.invalid");
         }

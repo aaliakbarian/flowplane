@@ -106,6 +106,8 @@ These signatures are implementation-plan targets, not an approved generic provid
 
 **Status:** Planned; blocked by A-11a. **Consumes:** accepted ScanAsync/sink/summary contract. **Produces:** durable complete inventory and refresh/failure/access semantics. Explicit implementation and schema approval are required.
 
+The approved finalized implementation has passed [isolated A-11b acceptance](a11b-current-inventory-acceptance.md) and is at final implementation review; the [migration review](a11b-current-inventory-migration-review.md) records the schema. No normal development database migration, commit or parent completion is implied. Its minimal one-refresh NotObserved identity/provenance policy supersedes the earlier last-known-payload wording below. GitHub remains the live progress tracker.
+
 ### A-11b.1: PostgreSQL staging and schema
 
 **Files:** Create Application `Providers/IProviderDiscoveryInventoryStore.cs` and `ProviderDiscoveryRefreshService.cs`; Infrastructure `Persistence/Discovery/ProviderDiscoveryInventoryStore.cs` and narrowly scoped persistence records. Modify `FlowPlaneDbContext.cs` and Infrastructure DI. Add one migration and updated model snapshot. Add `tests/integration/FlowPlane.Persistence.Tests/ProviderDiscoveryInventoryTests.cs`.

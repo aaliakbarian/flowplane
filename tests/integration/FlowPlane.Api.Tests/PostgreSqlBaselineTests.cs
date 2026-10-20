@@ -1,4 +1,7 @@
 using FlowPlane.Infrastructure.Persistence;
+using System.Net;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +11,53 @@ namespace FlowPlane.Api.Tests;
 
 public sealed class PostgreSqlBaselineTests
 {
+    [Fact]
+    public async Task Isolated_database_readiness_fails_and_recovers_without_stopping_shared_PostgreSQL()
+    {
+        var source = Environment.GetEnvironmentVariable("FLOWPLANE_TEST_POSTGRES_CONNECTION_STRING");
+        Assert.SkipWhen(string.IsNullOrWhiteSpace(source), "Configure isolated PostgreSQL 18.");
+        var token = TestContext.Current.CancellationToken;
+        var name = $"flowplane_a05_{Guid.NewGuid():N}";
+        var quoted = new NpgsqlCommandBuilder().QuoteIdentifier(name);
+        await using var admin = new NpgsqlConnection(new NpgsqlConnectionStringBuilder(source) { Database = "postgres", Pooling = false }.ConnectionString);
+        await admin.OpenAsync(token);
+        await using var command = admin.CreateCommand();
+        command.CommandText = $"CREATE DATABASE {quoted}";
+        await command.ExecuteNonQueryAsync(token);
+        try
+        {
+            var connection = new NpgsqlConnectionStringBuilder(source) { Database = name, Pooling = false }.ConnectionString;
+            await using var context = new FlowPlaneDbContext(new DbContextOptionsBuilder<FlowPlaneDbContext>().UseNpgsql(connection).Options);
+            await context.Database.MigrateAsync(token);
+            using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+                builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
+                    new Dictionary<string, string?> { ["ConnectionStrings:FlowPlane"] = connection })));
+            using var client = factory.CreateClient();
+            await Health("/health/live", HttpStatusCode.OK, "Healthy");
+            await Health("/health/ready", HttpStatusCode.OK, "Healthy");
+            command.CommandText = $"ALTER DATABASE {quoted} ALLOW_CONNECTIONS false";
+            await command.ExecuteNonQueryAsync(token);
+            await Health("/health/live", HttpStatusCode.OK, "Healthy");
+            await Health("/health/ready", HttpStatusCode.ServiceUnavailable, "Unhealthy");
+            command.CommandText = $"ALTER DATABASE {quoted} ALLOW_CONNECTIONS true";
+            await command.ExecuteNonQueryAsync(token);
+            await Health("/health/ready", HttpStatusCode.OK, "Healthy");
+            Assert.Equal(3, (await context.Database.GetAppliedMigrationsAsync(token)).Count());
+
+            async Task Health(string path, HttpStatusCode status, string body)
+            {
+                using var response = await client.GetAsync(path, token);
+                Assert.Equal(status, response.StatusCode);
+                Assert.Equal(body, await response.Content.ReadAsStringAsync(token));
+            }
+        }
+        finally
+        {
+            command.CommandText = $"DROP DATABASE {quoted} WITH (FORCE)";
+            await command.ExecuteNonQueryAsync(CancellationToken.None);
+        }
+    }
+
     [Fact]
     public async Task BaselineMigrationCanBeAppliedRepeatedlyToFreshDatabase()
     {
@@ -64,14 +114,14 @@ public sealed class PostgreSqlBaselineTests
                 """;
 
             var tableCount = (long)(await countTables.ExecuteScalarAsync(cancellationToken))!;
-            Assert.Equal(4, tableCount);
+            Assert.Equal(7, tableCount);
 
             await using var countMigrations = databaseConnection.CreateCommand();
             countMigrations.CommandText = "SELECT count(*) FROM \"__EFMigrationsHistory\";";
 
             var migrationCount =
                 (long)(await countMigrations.ExecuteScalarAsync(cancellationToken))!;
-            Assert.Equal(2, migrationCount);
+            Assert.Equal(3, migrationCount);
         }
         finally
         {

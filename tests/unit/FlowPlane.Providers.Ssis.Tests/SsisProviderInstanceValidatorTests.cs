@@ -11,6 +11,18 @@ namespace FlowPlane.Providers.Ssis.Tests;
 public sealed class SsisProviderInstanceValidatorTests
 {
     [Fact]
+    public async Task Rehydrated_provider_type_retains_the_A10_validation_path()
+    {
+        var original = CreateProviderInstance();
+        var rehydrated = ProviderInstance.Create(original.Id, ProviderType.Parse("ssis"), original.DisplayName,
+            true, original.Configuration, original.SecretReference, DateTimeOffset.UtcNow);
+        var validator = CreateValidator(new StubSecretResolver("secret"), new StubProbe((_, _, _) =>
+            Task.FromResult(SuccessfulProbeResult(ProviderCapabilityAvailability.Unknown, ProviderCapabilityAvailability.Unknown))), false);
+        var result = await validator.ValidateAsync(rehydrated, TestContext.Current.CancellationToken);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
     public async Task Successful_contact_remains_valid_when_capabilities_are_unknown()
     {
         var probeResult = SuccessfulProbeResult(

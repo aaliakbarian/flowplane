@@ -1,6 +1,8 @@
 using FlowPlane.Application.Providers;
+using FlowPlane.Application.Providers.DiscoveryInventory;
 using FlowPlane.Domain.Providers;
 using FlowPlane.Infrastructure.Secrets;
+using FlowPlane.Infrastructure.Persistence.Discovery;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -44,7 +46,11 @@ internal sealed class ProviderInstanceStore(
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-        var instance = await GetRequiredAsync(providerInstanceId, cancellationToken);
+        await DiscoveryDatabase.SetTimeoutsAsync(context, 30, cancellationToken);
+        var instance = await DiscoveryDatabase.LockProviderAsync(context, providerInstanceId, cancellationToken);
+        var retirement = await context.DiscoveryStates.AsNoTracking().SingleOrDefaultAsync(row => row.ProviderInstanceId == providerInstanceId, cancellationToken);
+        if (retirement?.Lifecycle == DiscoveryStateLifecycle.Deleting)
+            throw new DiscoveryInventoryException(DiscoveryInventoryError.ProviderUnavailable);
         instance.MarkCredentialChanged(expectedVersion, now);
         await secretStore.ReplaceAsync(instance.SecretReference, secret, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
@@ -56,13 +62,26 @@ internal sealed class ProviderInstanceStore(
         long expectedVersion,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-        var instance = await GetRequiredAsync(providerInstanceId, cancellationToken);
-        if (instance.Version != expectedVersion)
+        // Retirement is durable. Interrupted deletion can be resumed without resurrecting inventory.
+        await using (var retirement = await context.Database.BeginTransactionAsync(cancellationToken))
         {
-            throw new DbUpdateConcurrencyException("The provider instance was modified concurrently.");
+            await DiscoveryDatabase.SetTimeoutsAsync(context, 30, cancellationToken);
+            var retiring = await DiscoveryDatabase.LockProviderAsync(context, providerInstanceId, cancellationToken);
+            if (retiring.Version != expectedVersion)
+                throw new DbUpdateConcurrencyException("The provider instance was modified concurrently.");
+            await DiscoveryDatabase.LockSecretAsync(context, retiring, cancellationToken);
+            await ProviderDiscoveryInventoryStore.RetireAsync(context, providerInstanceId, cancellationToken);
+            await retirement.CommitAsync(cancellationToken);
         }
-
+        context.ChangeTracker.Clear();
+        await ProviderDiscoveryInventoryStore.PurgeRetiredAsync(context, providerInstanceId, cancellationToken);
+        context.ChangeTracker.Clear();
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        await DiscoveryDatabase.SetTimeoutsAsync(context, 30, cancellationToken);
+        var instance = await DiscoveryDatabase.LockProviderAsync(context, providerInstanceId, cancellationToken);
+        await DiscoveryDatabase.LockSecretAsync(context, instance, cancellationToken);
+        if (instance.Version != expectedVersion)
+            throw new DbUpdateConcurrencyException("The provider instance was modified concurrently.");
         if (instance.SecretReference.Scheme == SecretReferenceScheme.FlowPlane)
         {
             context.ProviderInstances.Remove(instance);
@@ -77,10 +96,4 @@ internal sealed class ProviderInstanceStore(
         await transaction.CommitAsync(cancellationToken);
     }
 
-    private async Task<ProviderInstance> GetRequiredAsync(
-        Guid id,
-        CancellationToken cancellationToken) =>
-        await context.ProviderInstances.SingleOrDefaultAsync(
-            item => item.Id == id,
-            cancellationToken) ?? throw new KeyNotFoundException("Provider instance was not found.");
 }

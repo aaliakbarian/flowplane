@@ -2,8 +2,10 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
 using FlowPlane.Application.Providers;
+using FlowPlane.Application.Providers.DiscoveryInventory;
 using FlowPlane.Application.Secrets;
 using FlowPlane.Infrastructure.Persistence;
+using FlowPlane.Infrastructure.Persistence.Discovery;
 using FlowPlane.Infrastructure.Secrets;
 
 using Microsoft.AspNetCore.DataProtection;
@@ -29,6 +31,10 @@ public static class DependencyInjection
         });
 
         AddSecretServices(services, configuration);
+        // The API composition root binds operator configuration and replaces this default.
+        services.AddSingleton(new DiscoveryInventoryOptions());
+        services.AddScoped<IProviderDiscoveryInventoryStore, ProviderDiscoveryInventoryStore>();
+        services.AddScoped<ProviderDiscoveryRefreshService>();
 
         services
             .AddHealthChecks()

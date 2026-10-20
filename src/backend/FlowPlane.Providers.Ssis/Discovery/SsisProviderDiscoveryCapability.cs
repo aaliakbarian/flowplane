@@ -29,7 +29,7 @@ internal sealed class SsisProviderDiscoveryCapability(
         ProviderDiscoveryScanResult Error(string code, string message,
             ProviderDiscoveryOutcome outcome = ProviderDiscoveryOutcome.Failed) =>
             state.Result(outcome, false, [new(code, message)]);
-        if (providerInstance.ProviderType != ProviderType || !providerInstance.IsEnabled)
+        if (!providerInstance.ProviderType.Equals(ProviderType) || !providerInstance.IsEnabled)
             return Error("ssis.discovery.configuration-invalid", "The SSIS provider configuration is invalid.");
 
         SsisProviderConfiguration configuration;

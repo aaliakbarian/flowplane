@@ -113,6 +113,9 @@ public_tables=$(compose exec -T postgres psql \
   --command "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;")
 expected_public_tables='DataProtectionKeys
 FlowPlaneSecrets
+ProviderDiscoveryGenerations
+ProviderDiscoveryObservations
+ProviderDiscoveryStates
 ProviderInstances
 __EFMigrationsHistory'
 test "$public_tables" = "$expected_public_tables"
@@ -123,7 +126,7 @@ migration_count=$(compose exec -T postgres psql \
   --username "$FLOWPLANE_POSTGRES_USER" \
   --dbname "$FLOWPLANE_POSTGRES_DB" \
   --command 'SELECT count(*) FROM "__EFMigrationsHistory";')
-test "$migration_count" = 2
+test "$migration_count" = 3
 
 compose up --build --detach --wait --wait-timeout 240 nginx
 
@@ -168,7 +171,7 @@ persisted_migration_count=$(compose exec -T postgres psql \
   --username "$FLOWPLANE_POSTGRES_USER" \
   --dbname "$FLOWPLANE_POSTGRES_DB" \
   --command 'SELECT count(*) FROM "__EFMigrationsHistory";')
-test "$persisted_migration_count" = 2
+test "$persisted_migration_count" = 3
 
 compose logs --no-color backend >"$log_file"
 if grep -Fq "$FLOWPLANE_POSTGRES_PASSWORD" "$log_file"; then
