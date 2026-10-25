@@ -28,7 +28,8 @@ internal sealed class SsisProviderInstanceValidator(
 
     public async Task<ProviderValidationResult> ValidateAsync(
         ProviderInstance providerInstance,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Func<CancellationToken, ValueTask<bool>>? contextIsCurrent = null)
     {
         ArgumentNullException.ThrowIfNull(providerInstance);
 
@@ -59,8 +60,15 @@ internal sealed class SsisProviderInstanceValidator(
         {
             var result = await secretResolver.UseAsync(
                 providerInstance.SecretReference,
-                (password, token) => new ValueTask<ProviderValidationResult>(
-                    probe.ValidateAsync(configuration, password, token)),
+                async (password, token) =>
+                {
+                    if (contextIsCurrent is not null && !await contextIsCurrent(token))
+                        return new ProviderValidationResult(ProviderValidationOutcome.Failed,
+                            [new("ssis.configuration.context-changed", ProviderValidationCheckStatus.Failed,
+                                "The provider context changed during validation."), .. BlockedChecks()],
+                            UnknownCapabilities("ssis.configuration.context-changed"), []);
+                    return await probe.ValidateAsync(configuration, password, token);
+                },
                 overallTimeout.Token);
 
             return result with

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 
 using FlowPlane.Api.Authentication;
+using FlowPlane.Api.Providers;
 using FlowPlane.Application.Providers.DiscoveryInventory;
 using FlowPlane.Infrastructure;
 using FlowPlane.Providers.Ssis;
@@ -22,6 +23,7 @@ builder.Logging.AddJsonConsole(options =>
 
 builder.Services.AddFlowPlanePostgreSql(builder.Configuration);
 builder.Services.AddFlowPlaneAuthentication(builder.Configuration, builder.Environment);
+builder.Services.AddProviderApi(builder.Configuration);
 SsisDiscoveryOptions.RejectObsoleteKeys(builder.Configuration
     .GetSection(SsisDiscoveryOptions.SectionName).GetChildren().Select(section => section.Key));
 var ssisDiscoveryOptions = builder.Configuration
@@ -46,7 +48,14 @@ builder.Services
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"]);
 
 var app = builder.Build();
+_ = app.Services.GetRequiredService<OperatorOptions>();
+_ = app.Services.GetRequiredService<FlowPlane.Providers.Ssis.Configuration.SsisEndpointPolicy>();
 
+app.UseStatusCodePages(async context =>
+{
+    context.HttpContext.Response.Headers.CacheControl = "no-store";
+    await ProviderApi.Problem(context.HttpContext.Response.StatusCode, "HttpRequestRejected").ExecuteAsync(context.HttpContext);
+});
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -63,6 +72,8 @@ app.MapGet("/me", (ClaimsPrincipal user) => Results.Ok(new
     Subject = user.FindFirstValue("sub"),
     Name = user.FindFirstValue("name")
 })).RequireAuthorization();
+
+app.MapProviderApi();
 
 app.Run();
 

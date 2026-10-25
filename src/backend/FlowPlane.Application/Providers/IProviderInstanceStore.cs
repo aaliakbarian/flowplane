@@ -4,6 +4,13 @@ namespace FlowPlane.Application.Providers;
 
 public interface IProviderInstanceStore
 {
+    Task<ProviderInstance?> FindAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ProviderInstance>> ListAsync(int offset, int limit, CancellationToken cancellationToken = default);
+
+    Task<ProviderInstance> UpdateAsync(Guid id, long expectedVersion, string displayName, bool isEnabled,
+        ProviderConfigurationDocument configuration, DateTimeOffset now, CancellationToken cancellationToken = default);
+
     Task<ProviderInstance> CreateWithManagedSecretAsync(
         Guid id,
         ProviderType providerType,

@@ -6,9 +6,15 @@ public interface IProviderInstanceValidationCapability
 {
     ProviderType ProviderType { get; }
 
+    /// <summary>
+    /// When supplied, recheck the captured configuration context after resolving the password
+    /// and before native IO. Persisted HTTP callers must supply this guard; a post-probe check
+    /// alone cannot prevent a newly replaced credential being sent to an obsolete destination.
+    /// </summary>
     Task<ProviderValidationResult> ValidateAsync(
         ProviderInstance providerInstance,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        Func<CancellationToken, ValueTask<bool>>? contextIsCurrent = null);
 }
 
 public enum ProviderValidationOutcome

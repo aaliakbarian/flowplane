@@ -23,5 +23,6 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="../FlowPlane.Persistence.Tests/PostgreSqlTestDatabase.cs" Link="Support/PostgreSqlTestDatabase.cs" />
   </ItemGroup>
 </Project>

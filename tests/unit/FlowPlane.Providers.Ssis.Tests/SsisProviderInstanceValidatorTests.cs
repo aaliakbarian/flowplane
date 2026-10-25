@@ -10,6 +10,39 @@ namespace FlowPlane.Providers.Ssis.Tests;
 
 public sealed class SsisProviderInstanceValidatorTests
 {
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 1)]
+    public async Task Changed_context_after_password_resolution_never_reaches_the_native_probe(bool contextCurrent, int expectedProbes)
+    {
+        var resolved = false;
+        var guardCalled = false;
+        var probe = new StubProbe((_, _, _) => Task.FromResult(SuccessfulProbeResult(
+            ProviderCapabilityAvailability.Available, ProviderCapabilityAvailability.Available)));
+        var validator = CreateValidator(new ObservedResolver(() => resolved = true), probe, false);
+        Func<CancellationToken, ValueTask<bool>> current = _ =>
+        {
+            Assert.True(resolved);
+            guardCalled = true;
+            return ValueTask.FromResult(contextCurrent);
+        };
+        var result = await validator.ValidateAsync(CreateProviderInstance(), TestContext.Current.CancellationToken, current);
+        Assert.True(guardCalled);
+        Assert.Equal(contextCurrent, result.IsValid);
+        Assert.Equal(expectedProbes, probe.CallCount);
+        if (!contextCurrent) Assert.Contains(result.Checks, check => check.Code == "ssis.configuration.context-changed");
+    }
+
+    private sealed class ObservedResolver(Action observed) : ISecretResolver
+    {
+        public ValueTask<T> UseAsync<T>(SecretReference reference,
+            Func<ReadOnlyMemory<char>, CancellationToken, ValueTask<T>> use, CancellationToken cancellationToken = default)
+        {
+            observed();
+            return use("synthetic-new-context-password".AsMemory(), cancellationToken);
+        }
+    }
+
     [Fact]
     public async Task Rehydrated_provider_type_retains_the_A10_validation_path()
     {

@@ -12,6 +12,35 @@ internal sealed class ProviderInstanceStore(
     FlowPlaneDbContext context,
     ManagedSecretStore secretStore) : IProviderInstanceStore
 {
+    private IQueryable<ProviderInstance> ActiveInstances => context.ProviderInstances.AsNoTracking()
+        .Where(instance => !context.DiscoveryStates.Any(state => state.ProviderInstanceId == instance.Id &&
+            state.Lifecycle == DiscoveryStateLifecycle.Deleting));
+
+    public Task<ProviderInstance?> FindAsync(Guid id, CancellationToken cancellationToken = default) =>
+        ActiveInstances.SingleOrDefaultAsync(instance => instance.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<ProviderInstance>> ListAsync(int offset, int limit, CancellationToken cancellationToken = default)
+    {
+        if (offset < 0 || limit is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(limit));
+        return await ActiveInstances.OrderBy(instance => instance.Id).Skip(offset).Take(limit).ToListAsync(cancellationToken);
+    }
+
+    public async Task<ProviderInstance> UpdateAsync(Guid id, long expectedVersion, string displayName, bool isEnabled,
+        ProviderConfigurationDocument configuration, DateTimeOffset now, CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        await DiscoveryDatabase.SetTimeoutsAsync(context, 30, cancellationToken);
+        var instance = await DiscoveryDatabase.LockProviderAsync(context, id, cancellationToken);
+        var retirement = await context.DiscoveryStates.AsNoTracking().SingleOrDefaultAsync(row => row.ProviderInstanceId == id, cancellationToken);
+        if (retirement?.Lifecycle == DiscoveryStateLifecycle.Deleting)
+            throw new DiscoveryInventoryException(DiscoveryInventoryError.ProviderUnavailable);
+        if (instance.Version != expectedVersion) throw new DbUpdateConcurrencyException("The provider instance was modified concurrently.");
+        instance.UpdateConfiguration(displayName, isEnabled, configuration, now);
+        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return instance;
+    }
+
     public async Task<ProviderInstance> CreateWithManagedSecretAsync(
         Guid id,
         ProviderType providerType,
@@ -51,6 +80,7 @@ internal sealed class ProviderInstanceStore(
         var retirement = await context.DiscoveryStates.AsNoTracking().SingleOrDefaultAsync(row => row.ProviderInstanceId == providerInstanceId, cancellationToken);
         if (retirement?.Lifecycle == DiscoveryStateLifecycle.Deleting)
             throw new DiscoveryInventoryException(DiscoveryInventoryError.ProviderUnavailable);
+        if (instance.Version != expectedVersion) throw new DbUpdateConcurrencyException("The provider instance was modified concurrently.");
         instance.MarkCredentialChanged(expectedVersion, now);
         await secretStore.ReplaceAsync(instance.SecretReference, secret, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
