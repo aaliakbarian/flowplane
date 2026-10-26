@@ -35,6 +35,8 @@ internal static partial class ProviderApi
             return operators;
         });
         services.AddSingleton<IAuthorizationHandler, OperatorAuthorizationHandler>();
+        services.AddSingleton<IInventoryCursorCodec, InventoryCursorCodec>();
+        services.AddScoped<InventoryBrowsingService>();
         services.AddAuthorizationBuilder().AddPolicy(OperatorAuthorizationHandler.Policy,
             policy => policy.RequireAuthenticatedUser().AddRequirements(new OperatorRequirement()));
         services.AddSingleton(provider => new SsisEndpointPolicy(provider.GetRequiredService<IConfiguration>()
@@ -50,6 +52,18 @@ internal static partial class ProviderApi
             invocation.HttpContext.Response.Headers.CacheControl = "no-store";
             try { return await next(invocation); }
             catch (ApiFailure error) { return Problem(error.Status, error.Code); }
+            catch (InventoryBrowseException error)
+            {
+                var status = error.Code switch
+                {
+                    InventoryBrowseError.InvalidRequest or InventoryBrowseError.InvalidCursor => 400,
+                    InventoryBrowseError.NativeDenied => 403,
+                    InventoryBrowseError.ProviderUnavailable => 404,
+                    InventoryBrowseError.NativeUnavailable or InventoryBrowseError.StorageUnavailable => 503,
+                    _ => 409,
+                };
+                return Problem(status, "Inventory" + error.Code);
+            }
             catch (HostedDiscoveryException error)
             {
                 var status = error.Code switch
@@ -86,6 +100,7 @@ internal static partial class ProviderApi
         group.MapPut("/{id:guid}/credential", ReplaceCredentialAsync);
         group.MapPost("/{id:guid}/validation", ValidateAsync);
         MapDiscoveryRefreshes(group);
+        group.MapGet("/{id:guid}/inventory", InventoryAsync);
     }
 
     private static async Task<IResult> ListAsync(HttpContext http, IProviderInstanceStore store, SsisProviderConfigurationCodec codec)

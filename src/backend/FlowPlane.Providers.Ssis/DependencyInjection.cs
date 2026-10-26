@@ -1,4 +1,5 @@
 using FlowPlane.Application.Providers;
+using FlowPlane.Application.Providers.DiscoveryInventory;
 using FlowPlane.Providers.Ssis.Configuration;
 using FlowPlane.Providers.Ssis.Discovery;
 using FlowPlane.Providers.Ssis.Validation;
@@ -28,6 +29,8 @@ public static class DependencyInjection
         services.AddScoped<IProviderInstanceValidationCapability, SsisProviderInstanceValidator>();
         services.AddSingleton<ISsisDiscoveryQuery, SsisSqlDiscoveryQuery>();
         services.AddScoped<IProviderDiscoveryCapability, SsisProviderDiscoveryCapability>();
+        services.AddSingleton<ISsisInventoryQuery, SsisInventoryQuery>();
+        services.AddScoped<IProviderInventoryDisclosure, SsisInventoryDisclosure>();
         return services;
     }
 }

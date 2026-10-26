@@ -363,8 +363,11 @@ class VerifierSafetyTests(unittest.TestCase):
     def test_success_reports_counts_without_canaries_or_broad_cleanup(self):
         result, state = self.invoke()
         self.assertEqual(result.returncode, 0, result.stderr)
-        # The fixture has six required A-09 methods plus ten other suite rows.
-        self.assertIn("passed=16 failed=0 skipped=0", result.stdout)
+        # New persistence suites add a synthetic row; retain exact count verification.
+        suites = (ROOT / "tests/integration/FlowPlane.Persistence.Tests").glob("*Tests.cs")
+        expected = sum(len(REQUIRED.get(suite.stem, ["Fixture"])) for suite in suites)
+        self.assertGreater(expected, 0)
+        self.assertIn(f"passed={expected} failed=0 skipped=0", result.stdout)
         self.assertNotIn("synthetic-password-canary", result.stdout + result.stderr)
         self.assertFalse(state.get("unsafe_down"))
         self.assertEqual(state["volume"], {})

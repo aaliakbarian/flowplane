@@ -35,6 +35,7 @@ public static class DependencyInjection
         // The API composition root binds operator configuration and replaces this default.
         services.AddSingleton(new DiscoveryInventoryOptions());
         services.AddScoped<IProviderDiscoveryInventoryStore, ProviderDiscoveryInventoryStore>();
+        services.AddScoped<IProviderInventoryPageStore, ProviderDiscoveryInventoryStore>();
         services.AddScoped<ProviderDiscoveryRefreshService>();
         services.AddSingleton(new DiscoveryHostingOptions());
         services.AddScoped<IHostedDiscoveryStore, HostedDiscoveryStore>();
