@@ -39,6 +39,9 @@ internal sealed class PostgreSqlTestDatabase : IAsyncDisposable
             return null;
         }
 
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("FLOWPLANE_TEST_DISCOVERY_HOSTING_MIGRATION_APPROVED") == "true",
+            "Gate B is not approved for application; no isolated database is created or migrated.");
+
         var databaseName = $"flowplane_a09_{Guid.NewGuid():N}";
         var adminConnectionString = new NpgsqlConnectionStringBuilder(baseConnectionString)
         {

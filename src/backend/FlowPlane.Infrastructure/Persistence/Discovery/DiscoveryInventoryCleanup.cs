@@ -19,7 +19,7 @@ internal sealed partial class ProviderDiscoveryInventoryStore
         catch (Exception) { throw new DiscoveryInventoryException(DiscoveryInventoryError.StorageUnavailable); }
     }
 
-    private async Task<bool> CleanupBatchAsync(Guid providerInstanceId, CancellationToken token)
+    internal async Task<bool> CleanupBatchAsync(Guid providerInstanceId, CancellationToken token)
     {
         await using var db = CreateContext();
         await using var transaction = await db.Database.BeginTransactionAsync(token);
@@ -33,6 +33,8 @@ internal sealed partial class ProviderDiscoveryInventoryStore
             if (generation.ExpiresAtUtc <= now)
             {
                 generation.Status = DiscoveryGenerationStatus.Abandoned;
+                generation.ExecutionSlot = null;
+                generation.PublicationUncertain = false;
                 generation.FinishedAtUtc = now;
                 generation.Error = DiscoveryInventoryError.Expired;
                 generation.Version = checked(generation.Version + 1);
@@ -78,6 +80,8 @@ internal sealed partial class ProviderDiscoveryInventoryStore
         {
             var generation = await db.DiscoveryGenerations.SingleAsync(row => row.RefreshId == claimed, token);
             generation.Status = DiscoveryGenerationStatus.Superseded;
+            generation.ExecutionSlot = null;
+            generation.PublicationUncertain = false;
             generation.Error = DiscoveryInventoryError.ProviderUnavailable;
             generation.FinishedAtUtc = await DiscoveryDatabase.NowAsync(db, token);
             generation.Version = checked(generation.Version + 1);

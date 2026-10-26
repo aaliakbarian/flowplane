@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using FlowPlane.Api.Authentication;
 using FlowPlane.Application.Providers;
 using FlowPlane.Application.Providers.DiscoveryInventory;
+using FlowPlane.Application.Providers.DiscoveryHosting;
 using FlowPlane.Application.Secrets;
 using FlowPlane.Domain.Providers;
 using FlowPlane.Providers.Ssis.Configuration;
@@ -15,7 +16,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FlowPlane.Api.Providers;
 
-internal static class ProviderApi
+internal static partial class ProviderApi
 {
     private static readonly JsonSerializerOptions InputJson = new(JsonSerializerDefaults.Web)
     {
@@ -49,6 +50,18 @@ internal static class ProviderApi
             invocation.HttpContext.Response.Headers.CacheControl = "no-store";
             try { return await next(invocation); }
             catch (ApiFailure error) { return Problem(error.Status, error.Code); }
+            catch (HostedDiscoveryException error)
+            {
+                var status = error.Code switch
+                {
+                    HostedDiscoveryError.InvalidKey => 400,
+                    HostedDiscoveryError.KeyConflict or HostedDiscoveryError.SlotOccupied => 409,
+                    HostedDiscoveryError.VersionChanged => 412,
+                    HostedDiscoveryError.NotFound => 404,
+                    _ => 503,
+                };
+                return Problem(status, "Discovery" + error.Code);
+            }
             catch (ProviderConfigurationException) { return Problem(400, "ProviderConfigurationInvalid"); }
             catch (JsonException) { return Problem(400, "InvalidJson"); }
             catch (ArgumentException) { return Problem(400, "ProviderConfigurationInvalid"); }
@@ -72,6 +85,7 @@ internal static class ProviderApi
         group.MapPut("/{id:guid}", UpdateAsync);
         group.MapPut("/{id:guid}/credential", ReplaceCredentialAsync);
         group.MapPost("/{id:guid}/validation", ValidateAsync);
+        MapDiscoveryRefreshes(group);
     }
 
     private static async Task<IResult> ListAsync(HttpContext http, IProviderInstanceStore store, SsisProviderConfigurationCodec codec)

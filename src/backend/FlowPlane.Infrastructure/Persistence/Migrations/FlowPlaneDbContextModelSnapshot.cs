@@ -95,6 +95,12 @@ namespace FlowPlane.Infrastructure.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
+                    b.Property<int?>("ExecutionSlot")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("ExecutorId")
+                        .HasColumnType("uuid");
+
                     b.Property<long>("ExpectedPublicationVersion")
                         .HasColumnType("bigint");
 
@@ -109,6 +115,9 @@ namespace FlowPlane.Infrastructure.Persistence.Migrations
 
                     b.Property<long>("IncompatibleCount")
                         .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("LeaseExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long?>("ManagedSecretVersion")
                         .HasColumnType("bigint");
@@ -130,8 +139,27 @@ namespace FlowPlane.Infrastructure.Persistence.Migrations
                     b.Property<long>("ProviderVersion")
                         .HasColumnType("bigint");
 
+                    b.Property<DateTimeOffset?>("PublicationAttemptedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("PublicationUncertain")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTimeOffset?>("PublishedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ReceiptExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RequestingIssuer")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .UseCollation("C");
+
+                    b.Property<string>("RequestingSubject")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .UseCollation("C");
 
                     b.Property<bool>("ScanCompleted")
                         .HasColumnType("boolean");
@@ -167,10 +195,15 @@ namespace FlowPlane.Infrastructure.Persistence.Migrations
 
                     b.HasKey("RefreshId");
 
+                    b.HasIndex("ExecutionSlot")
+                        .IsUnique()
+                        .HasDatabaseName("UX_DiscoveryGeneration_HostedSlot")
+                        .HasFilter("\"ExecutionSlot\" IS NOT NULL");
+
                     b.HasIndex("ProviderInstanceId")
                         .IsUnique()
                         .HasDatabaseName("UX_DiscoveryGeneration_ActiveClaim")
-                        .HasFilter("\"Status\" IN ('Staging', 'Preparing', 'Ready')");
+                        .HasFilter("\"Status\" IN ('Accepted', 'Staging', 'Preparing', 'Ready')");
 
                     b.HasIndex("ProviderInstanceId", "FinishedAtUtc");
 
@@ -184,9 +217,13 @@ namespace FlowPlane.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_DiscoveryGeneration_Expiry", "\"ExpiresAtUtc\" > \"StartedAtUtc\"");
 
+                            t.HasCheckConstraint("CK_DiscoveryGeneration_Hosting", "(\"RequestingIssuer\" IS NULL AND \"RequestingSubject\" IS NULL AND \"ExecutionSlot\" IS NULL AND \"ExecutorId\" IS NULL AND \"LeaseExpiresAtUtc\" IS NULL AND \"ReceiptExpiresAtUtc\" IS NULL AND \"PublicationAttemptedAtUtc\" IS NULL AND NOT \"PublicationUncertain\" AND \"Status\" <> 'Accepted') OR (\"RequestingIssuer\" IS NOT NULL AND length(\"RequestingIssuer\") > 0 AND \"RequestingSubject\" IS NOT NULL AND length(\"RequestingSubject\") > 0 AND \"ReceiptExpiresAtUtc\" IS NOT NULL AND \"ReceiptExpiresAtUtc\" > \"ExpiresAtUtc\" AND (\"ExecutionSlot\" IS NULL OR \"ExecutionSlot\" = 1) AND (\"ExecutionSlot\" IS NULL OR \"LeaseExpiresAtUtc\" IS NOT NULL) AND (\"Status\" <> 'Accepted' OR (\"ExecutionSlot\" = 1 AND \"ExecutorId\" IS NULL)) AND (\"Status\" NOT IN ('Staging','Preparing','Ready') OR (\"ExecutionSlot\" = 1 AND \"ExecutorId\" IS NOT NULL AND \"LeaseExpiresAtUtc\" IS NOT NULL)))");
+
+                            t.HasCheckConstraint("CK_DiscoveryGeneration_HostingPresence", "\"RequestingIssuer\" IS NULL OR ((\"Status\" NOT IN ('Accepted','Staging','Preparing','Ready') OR \"ExecutionSlot\" IS NOT NULL) AND (NOT \"PublicationUncertain\" OR \"PublicationAttemptedAtUtc\" IS NOT NULL) AND substring(\"RefreshId\"::text, 15, 1) = '7' AND substring(\"RefreshId\"::text, 20, 1) IN ('8','9','a','b'))");
+
                             t.HasCheckConstraint("CK_DiscoveryGeneration_Publication", "\"Status\" <> 'Published' OR (\"PublishedAtUtc\" IS NOT NULL AND \"FinishedAtUtc\" IS NOT NULL AND \"ScanFinishedAtUtc\" IS NOT NULL AND \"ScanCompleted\" AND \"SourceCompatibility\" IS NOT NULL AND \"SourceCompatibility\" = 'Compatible' AND \"ScanOutcome\" IS NOT NULL AND ((\"ScanOutcome\" = 'Succeeded' AND \"IncompatibleCount\" = 0) OR (\"ScanOutcome\" = 'Partial' AND \"IncompatibleCount\" > 0)))");
 
-                            t.HasCheckConstraint("CK_DiscoveryGeneration_Status", "\"Status\" IN ('Staging','Preparing','Ready','Published','Failed','Cancelled','Superseded','Abandoned')");
+                            t.HasCheckConstraint("CK_DiscoveryGeneration_Status", "\"Status\" IN ('Accepted','Staging','Preparing','Ready','Published','Failed','Cancelled','Superseded','Abandoned')");
 
                             t.HasCheckConstraint("CK_DiscoveryGeneration_Versions", "\"Version\" > 0 AND \"ProviderVersion\" > 0 AND \"FenceToken\" > 0 AND \"ExpectedPublicationVersion\" >= 0 AND (\"ManagedSecretVersion\" IS NULL OR \"ManagedSecretVersion\" > 0)");
                         });

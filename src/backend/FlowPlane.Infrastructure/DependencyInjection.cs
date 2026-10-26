@@ -3,6 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 
 using FlowPlane.Application.Providers;
 using FlowPlane.Application.Providers.DiscoveryInventory;
+using FlowPlane.Application.Providers.DiscoveryHosting;
 using FlowPlane.Application.Secrets;
 using FlowPlane.Infrastructure.Persistence;
 using FlowPlane.Infrastructure.Persistence.Discovery;
@@ -35,6 +36,8 @@ public static class DependencyInjection
         services.AddSingleton(new DiscoveryInventoryOptions());
         services.AddScoped<IProviderDiscoveryInventoryStore, ProviderDiscoveryInventoryStore>();
         services.AddScoped<ProviderDiscoveryRefreshService>();
+        services.AddSingleton(new DiscoveryHostingOptions());
+        services.AddScoped<IHostedDiscoveryStore, HostedDiscoveryStore>();
 
         services
             .AddHealthChecks()

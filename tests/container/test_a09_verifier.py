@@ -74,6 +74,9 @@ def fake(tool, args):
             Path(args[args.index("-out") + 1]).write_text("synthetic-certificate")
     elif tool == "dotnet":
         if "test" in args:
+            if case == "gate_b_approval" and os.environ.get("FLOWPLANE_TEST_DISCOVERY_HOSTING_MIGRATION_APPROVED") != "true":
+                path.write_text(json.dumps(state))
+                return 42
             if "--results-directory" in args:
                 directory = Path(args[args.index("--results-directory") + 1])
                 directory.mkdir(parents=True, exist_ok=True)
@@ -255,6 +258,12 @@ def fake(tool, args):
 
 
 class VerifierSafetyTests(unittest.TestCase):
+    def test_latest_isolated_schema_approval_is_forwarded_without_adopting_an_external_target(self):
+        result, state = self.invoke("gate_b_approval")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotEqual(state["project"], "flowplane")
+        self.assertEqual(state["volume"], {})
+
     def invoke(self, case="success", extra=None):
         with tempfile.TemporaryDirectory(prefix="a09-safety-test-") as directory:
             d = Path(directory)
@@ -354,8 +363,8 @@ class VerifierSafetyTests(unittest.TestCase):
     def test_success_reports_counts_without_canaries_or_broad_cleanup(self):
         result, state = self.invoke()
         self.assertEqual(result.returncode, 0, result.stderr)
-        # The fixture has six required A-09 methods plus seven other suite rows.
-        self.assertIn("passed=13 failed=0 skipped=0", result.stdout)
+        # The fixture has six required A-09 methods plus ten other suite rows.
+        self.assertIn("passed=16 failed=0 skipped=0", result.stdout)
         self.assertNotIn("synthetic-password-canary", result.stdout + result.stderr)
         self.assertFalse(state.get("unsafe_down"))
         self.assertEqual(state["volume"], {})

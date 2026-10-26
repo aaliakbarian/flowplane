@@ -32,7 +32,10 @@ internal static class DiscoveryModelConfiguration
         {
             builder.ToTable("ProviderDiscoveryGenerations", table =>
             {
-                table.HasCheckConstraint("CK_DiscoveryGeneration_Status", "\"Status\" IN ('Staging','Preparing','Ready','Published','Failed','Cancelled','Superseded','Abandoned')");
+                table.HasCheckConstraint("CK_DiscoveryGeneration_Status", "\"Status\" IN ('Accepted','Staging','Preparing','Ready','Published','Failed','Cancelled','Superseded','Abandoned')");
+                table.HasCheckConstraint("CK_DiscoveryGeneration_Hosting", "(\"RequestingIssuer\" IS NULL AND \"RequestingSubject\" IS NULL AND \"ExecutionSlot\" IS NULL AND \"ExecutorId\" IS NULL AND \"LeaseExpiresAtUtc\" IS NULL AND \"ReceiptExpiresAtUtc\" IS NULL AND \"PublicationAttemptedAtUtc\" IS NULL AND NOT \"PublicationUncertain\" AND \"Status\" <> 'Accepted') OR (\"RequestingIssuer\" IS NOT NULL AND length(\"RequestingIssuer\") > 0 AND \"RequestingSubject\" IS NOT NULL AND length(\"RequestingSubject\") > 0 AND \"ReceiptExpiresAtUtc\" IS NOT NULL AND \"ReceiptExpiresAtUtc\" > \"ExpiresAtUtc\" AND (\"ExecutionSlot\" IS NULL OR \"ExecutionSlot\" = 1) AND (\"ExecutionSlot\" IS NULL OR \"LeaseExpiresAtUtc\" IS NOT NULL) AND (\"Status\" <> 'Accepted' OR (\"ExecutionSlot\" = 1 AND \"ExecutorId\" IS NULL)) AND (\"Status\" NOT IN ('Staging','Preparing','Ready') OR (\"ExecutionSlot\" = 1 AND \"ExecutorId\" IS NOT NULL AND \"LeaseExpiresAtUtc\" IS NOT NULL)))");
+                // Explicit null tests are necessary: PostgreSQL CHECK accepts UNKNOWN as well as TRUE.
+                table.HasCheckConstraint("CK_DiscoveryGeneration_HostingPresence", "\"RequestingIssuer\" IS NULL OR ((\"Status\" NOT IN ('Accepted','Staging','Preparing','Ready') OR \"ExecutionSlot\" IS NOT NULL) AND (NOT \"PublicationUncertain\" OR \"PublicationAttemptedAtUtc\" IS NOT NULL) AND substring(\"RefreshId\"::text, 15, 1) = '7' AND substring(\"RefreshId\"::text, 20, 1) IN ('8','9','a','b'))");
                 table.HasCheckConstraint("CK_DiscoveryGeneration_Versions", "\"Version\" > 0 AND \"ProviderVersion\" > 0 AND \"FenceToken\" > 0 AND \"ExpectedPublicationVersion\" >= 0 AND (\"ManagedSecretVersion\" IS NULL OR \"ManagedSecretVersion\" > 0)");
                 table.HasCheckConstraint("CK_DiscoveryGeneration_Credential", "(\"CredentialKind\" = 'FlowPlane' AND \"ManagedSecretVersion\" IS NOT NULL) OR (\"CredentialKind\" = 'Environment' AND \"ManagedSecretVersion\" IS NULL)");
                 table.HasCheckConstraint("CK_DiscoveryGeneration_Counts", "\"ObservationCount\" >= 0 AND \"CandidateCount\" >= 0 AND \"CandidateCount\" <= \"ObservationCount\" AND \"IncompatibleCount\" >= 0 AND \"IncompatibleCount\" <= \"ObservationCount\" AND \"AddedCount\" >= 0 AND \"ChangedCount\" >= 0 AND \"UnchangedCount\" >= 0 AND \"NotObservedCount\" >= 0");
@@ -49,9 +52,13 @@ internal static class DiscoveryModelConfiguration
             builder.Property(row => row.SourceCompatibility).HasConversion<string>().HasMaxLength(16);
             builder.Property(row => row.Error).HasConversion<string>().HasMaxLength(32);
             builder.Property(row => row.Version).IsConcurrencyToken();
+            builder.Property(row => row.RequestingIssuer).HasMaxLength(2048).UseCollation("C");
+            builder.Property(row => row.RequestingSubject).HasMaxLength(512).UseCollation("C");
+            builder.HasIndex(row => row.ExecutionSlot).IsUnique().HasDatabaseName("UX_DiscoveryGeneration_HostedSlot")
+                .HasFilter("\"ExecutionSlot\" IS NOT NULL");
             builder.HasIndex(row => row.ProviderInstanceId).IsUnique()
                 .HasDatabaseName("UX_DiscoveryGeneration_ActiveClaim")
-                .HasFilter("\"Status\" IN ('Staging', 'Preparing', 'Ready')");
+                .HasFilter("\"Status\" IN ('Accepted', 'Staging', 'Preparing', 'Ready')");
             builder.HasIndex(row => new { row.Status, row.ExpiresAtUtc });
             builder.HasIndex(row => new { row.ProviderInstanceId, row.FinishedAtUtc });
         });

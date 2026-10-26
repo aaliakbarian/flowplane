@@ -31,6 +31,8 @@ internal sealed partial class ProviderDiscoveryInventoryStore(
                 var previous = await db.DiscoveryGenerations.SingleAsync(row => row.RefreshId == previousId, cancellationToken);
                 if (previous.ExpiresAtUtc > now) throw new DiscoveryInventoryException(DiscoveryInventoryError.RefreshInProgress);
                 previous.Status = DiscoveryGenerationStatus.Abandoned;
+                previous.ExecutionSlot = null;
+                previous.PublicationUncertain = false;
                 previous.FinishedAtUtc = now;
                 previous.Error = DiscoveryInventoryError.Expired;
                 previous.Version = checked(previous.Version + 1);
@@ -99,6 +101,8 @@ internal sealed partial class ProviderDiscoveryInventoryStore(
             _ => DiscoveryGenerationStatus.Failed,
         };
         generation.Error = reason;
+        generation.ExecutionSlot = null;
+        generation.PublicationUncertain = false;
         generation.FinishedAtUtc = await DiscoveryDatabase.NowAsync(db, token);
         generation.Version = checked(generation.Version + 1);
         state.InFlightGenerationId = null;

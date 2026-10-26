@@ -49,6 +49,8 @@ internal sealed class SsisProviderDiscoveryCapability(
         {
             return await secretResolver.UseAsync(providerInstance.SecretReference, async (password, token) =>
             {
+                if (sink is IProviderDiscoveryContextGuard guard && !await guard.IsCurrentAsync(token))
+                    return Error("ssis.discovery.context-changed", "The provider context changed before discovery.");
                 var facts = await validationSqlExecutor.ReadMasterFactsAsync(configuration, password,
                     new SsisValidationOptions(options.ConnectionTimeoutSeconds,
                         options.CommandTimeoutSeconds, options.OverallTimeoutSeconds), token);

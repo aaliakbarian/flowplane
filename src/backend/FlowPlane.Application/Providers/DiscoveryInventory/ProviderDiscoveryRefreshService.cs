@@ -5,18 +5,27 @@ public sealed class ProviderDiscoveryRefreshService(
     IEnumerable<IProviderDiscoveryCapability> capabilities,
     DiscoveryInventoryOptions options)
 {
-    public async Task<ProviderDiscoveryRefreshResult> RefreshAsync(Guid providerInstanceId, CancellationToken cancellationToken = default)
+    public Task<ProviderDiscoveryRefreshResult> RefreshAsync(Guid providerInstanceId, CancellationToken cancellationToken = default) =>
+        RunAsync(providerInstanceId, null, cancellationToken);
+
+    /// <summary>Execute the durable accepted claim; never calls BeginRefreshAsync.</summary>
+    public Task<ProviderDiscoveryRefreshResult> ExecuteAcceptedAsync(IProviderDiscoveryRefreshSession session, CancellationToken cancellationToken = default) =>
+        RunAsync(session.Instance.Id, session, cancellationToken);
+
+    private async Task<ProviderDiscoveryRefreshResult> RunAsync(Guid providerInstanceId,
+        IProviderDiscoveryRefreshSession? accepted, CancellationToken cancellationToken)
     {
         options.Validate();
         cancellationToken.ThrowIfCancellationRequested();
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         operation.CancelAfter(options.RefreshTimeout);
-        IProviderDiscoveryRefreshSession? session = null;
+        IProviderDiscoveryRefreshSession? session = accepted;
         var publicationReturned = false;
         try
         {
-            using (var claim = CancellationTokenSource.CreateLinkedTokenSource(operation.Token))
+            if (session is null)
             {
+                using var claim = CancellationTokenSource.CreateLinkedTokenSource(operation.Token);
                 claim.CancelAfter(TimeSpan.FromSeconds(options.ClaimTimeoutSeconds));
                 session = await store.BeginRefreshAsync(providerInstanceId, claim.Token);
             }
@@ -29,7 +38,9 @@ public sealed class ProviderDiscoveryRefreshService(
                 scan = await capability.ScanAsync(session.Instance, session.Sink, source.Token);
             }
             if (!DiscoveryPublicationPolicy.CanPublish(scan, scan.ObservationsDelivered, scan.ExecutableCandidates))
-                throw new DiscoveryInventoryException(session.SinkFailure ?? DiscoveryInventoryError.IncompleteScan);
+                throw new DiscoveryInventoryException(session.SinkFailure ??
+                    (accepted is not null && scan.Outcome == ProviderDiscoveryOutcome.Unavailable
+                        ? DiscoveryInventoryError.ProviderUnavailable : DiscoveryInventoryError.IncompleteScan));
             // Session applies its independent preparation/publication budgets and the durable deadline.
             var publication = await session.PublishAsync(scan, operation.Token);
             publicationReturned = true;

@@ -27,6 +27,12 @@ public interface IProviderDiscoverySink
         CancellationToken cancellationToken);
 }
 
+/// <summary>Recheck persisted configuration/credential ownership after resolving a secret and before native IO.</summary>
+public interface IProviderDiscoveryContextGuard
+{
+    Task<bool> IsCurrentAsync(CancellationToken cancellationToken);
+}
+
 public enum ProviderDiscoveryOutcome
 {
     Succeeded,

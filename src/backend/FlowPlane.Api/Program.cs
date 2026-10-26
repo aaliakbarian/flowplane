@@ -3,6 +3,7 @@ using System.Security.Claims;
 using FlowPlane.Api.Authentication;
 using FlowPlane.Api.Providers;
 using FlowPlane.Application.Providers.DiscoveryInventory;
+using FlowPlane.Application.Providers.DiscoveryHosting;
 using FlowPlane.Infrastructure;
 using FlowPlane.Providers.Ssis;
 using FlowPlane.Providers.Ssis.Discovery;
@@ -24,6 +25,14 @@ builder.Logging.AddJsonConsole(options =>
 builder.Services.AddFlowPlanePostgreSql(builder.Configuration);
 builder.Services.AddFlowPlaneAuthentication(builder.Configuration, builder.Environment);
 builder.Services.AddProviderApi(builder.Configuration);
+builder.Services.AddSingleton(provider =>
+{
+    var options = provider.GetRequiredService<IConfiguration>().GetSection(DiscoveryHostingOptions.SectionName)
+        .Get<DiscoveryHostingOptions>(binder => binder.ErrorOnUnknownConfiguration = true) ?? new();
+    options.Validate();
+    return options;
+});
+builder.Services.AddHostedService<DiscoveryHostedRunner>();
 SsisDiscoveryOptions.RejectObsoleteKeys(builder.Configuration
     .GetSection(SsisDiscoveryOptions.SectionName).GetChildren().Select(section => section.Key));
 var ssisDiscoveryOptions = builder.Configuration
@@ -49,6 +58,7 @@ builder.Services
 
 var app = builder.Build();
 _ = app.Services.GetRequiredService<OperatorOptions>();
+_ = app.Services.GetRequiredService<DiscoveryHostingOptions>();
 _ = app.Services.GetRequiredService<FlowPlane.Providers.Ssis.Configuration.SsisEndpointPolicy>();
 
 app.UseStatusCodePages(async context =>

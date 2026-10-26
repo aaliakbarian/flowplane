@@ -14,6 +14,7 @@ public sealed class PostgreSqlBaselineTests
     [Fact]
     public async Task Isolated_database_readiness_fails_and_recovers_without_stopping_shared_PostgreSQL()
     {
+        RequireGateB();
         var source = Environment.GetEnvironmentVariable("FLOWPLANE_TEST_POSTGRES_CONNECTION_STRING");
         Assert.SkipWhen(string.IsNullOrWhiteSpace(source), "Configure isolated PostgreSQL 18.");
         var token = TestContext.Current.CancellationToken;
@@ -42,7 +43,7 @@ public sealed class PostgreSqlBaselineTests
             command.CommandText = $"ALTER DATABASE {quoted} ALLOW_CONNECTIONS true";
             await command.ExecuteNonQueryAsync(token);
             await Health("/health/ready", HttpStatusCode.OK, "Healthy");
-            Assert.Equal(3, (await context.Database.GetAppliedMigrationsAsync(token)).Count());
+            Assert.Equal(4, (await context.Database.GetAppliedMigrationsAsync(token)).Count());
 
             async Task Health(string path, HttpStatusCode status, string body)
             {
@@ -61,6 +62,7 @@ public sealed class PostgreSqlBaselineTests
     [Fact]
     public async Task BaselineMigrationCanBeAppliedRepeatedlyToFreshDatabase()
     {
+        RequireGateB();
         var baseConnectionString = Environment.GetEnvironmentVariable(
             "FLOWPLANE_TEST_POSTGRES_CONNECTION_STRING");
         Assert.SkipWhen(
@@ -121,7 +123,7 @@ public sealed class PostgreSqlBaselineTests
 
             var migrationCount =
                 (long)(await countMigrations.ExecuteScalarAsync(cancellationToken))!;
-            Assert.Equal(3, migrationCount);
+            Assert.Equal(4, migrationCount);
         }
         finally
         {
@@ -130,4 +132,8 @@ public sealed class PostgreSqlBaselineTests
             await dropDatabase.ExecuteNonQueryAsync(cancellationToken);
         }
     }
+
+    private static void RequireGateB() => Assert.SkipUnless(
+        Environment.GetEnvironmentVariable("FLOWPLANE_TEST_DISCOVERY_HOSTING_MIGRATION_APPROVED") == "true",
+        "Explicit Gate B migration application approval is required.");
 }

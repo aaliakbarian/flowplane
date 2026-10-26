@@ -126,7 +126,7 @@ migration_count=$(compose exec -T postgres psql \
   --username "$FLOWPLANE_POSTGRES_USER" \
   --dbname "$FLOWPLANE_POSTGRES_DB" \
   --command 'SELECT count(*) FROM "__EFMigrationsHistory";')
-test "$migration_count" = 3
+test "$migration_count" = 4
 
 compose up --build --detach --wait --wait-timeout 240 nginx
 
@@ -171,7 +171,7 @@ persisted_migration_count=$(compose exec -T postgres psql \
   --username "$FLOWPLANE_POSTGRES_USER" \
   --dbname "$FLOWPLANE_POSTGRES_DB" \
   --command 'SELECT count(*) FROM "__EFMigrationsHistory";')
-test "$persisted_migration_count" = 3
+test "$persisted_migration_count" = 4
 
 compose logs --no-color backend >"$log_file"
 if grep -Fq "$FLOWPLANE_POSTGRES_PASSWORD" "$log_file"; then

@@ -4,7 +4,7 @@ using FlowPlane.Application.Providers.DiscoveryInventory;
 namespace FlowPlane.Infrastructure.Persistence.Discovery;
 
 internal enum DiscoveryStateLifecycle { Active, Deleting }
-internal enum DiscoveryGenerationStatus { Staging, Preparing, Ready, Published, Failed, Cancelled, Superseded, Abandoned }
+internal enum DiscoveryGenerationStatus { Staging, Preparing, Ready, Published, Failed, Cancelled, Superseded, Abandoned, Accepted }
 
 internal sealed class DiscoveryState
 {
@@ -19,6 +19,14 @@ internal sealed class DiscoveryState
 
 internal sealed class DiscoveryGeneration
 {
+    public string? RequestingIssuer { get; set; }
+    public string? RequestingSubject { get; set; }
+    public int? ExecutionSlot { get; set; }
+    public Guid? ExecutorId { get; set; }
+    public DateTimeOffset? LeaseExpiresAtUtc { get; set; }
+    public DateTimeOffset? ReceiptExpiresAtUtc { get; set; }
+    public DateTimeOffset? PublicationAttemptedAtUtc { get; set; }
+    public bool PublicationUncertain { get; set; }
     public Guid RefreshId { get; set; }
     public Guid ProviderInstanceId { get; set; }
     public Guid? BaseGenerationId { get; set; }

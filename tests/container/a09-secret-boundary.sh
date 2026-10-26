@@ -69,7 +69,8 @@ def environment():
     accepted = {"FLOWPLANE_UID": str(os.getuid()), "FLOWPLANE_GID": str(os.getgid()),
                 "FLOWPLANE_POSTGRES_PORT": PORT, "FLOWPLANE_POSTGRES_USER": "flowplane",
                 "FLOWPLANE_POSTGRES_DB": "flowplane",
-                "FLOWPLANE_TEST_DISCOVERY_MIGRATION_APPROVED": "true"}
+                "FLOWPLANE_TEST_DISCOVERY_MIGRATION_APPROVED": "true",
+                "FLOWPLANE_TEST_DISCOVERY_HOSTING_MIGRATION_APPROVED": "true"}
     for key, value in env.items():
         protected = key.upper().startswith(("FLOWPLANE_", "CONNECTIONSTRINGS__", "COMPOSE_", "DOCKER_", "BUILDX_"))
         protected |= key in {"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGSERVICE", "PGSERVICEFILE", "PGPASSFILE", "PGOPTIONS"}

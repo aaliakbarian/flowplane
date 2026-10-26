@@ -11,6 +11,30 @@ namespace FlowPlane.Providers.Ssis.Tests;
 
 public sealed class SsisProviderDiscoveryCapabilityTests
 {
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 1)]
+    public async Task Persisted_context_is_checked_after_secret_resolution_and_before_native_IO(bool current, int calls)
+    {
+        var resolver = new StubSecretResolver("synthetic-bounded-password");
+        var sql = new StubSqlExecutor(new("17.0.1000.7", "RTM", "Developer", 1));
+        var query = new StubDiscoveryQuery(new SsisDiscoveryScannerTests.GeneratedSession(1));
+        var guard = new GuardedSink(() => { Assert.Equal(1, resolver.CallCount); return current; });
+        var capability = new SsisProviderDiscoveryCapability(new(), resolver, sql, query, new(false), SsisDiscoveryOptions.Default);
+        var result = await capability.ScanAsync(Instance(), guard, TestContext.Current.CancellationToken);
+        Assert.Equal(calls, sql.MasterCalls);
+        Assert.Equal(calls, query.CallCount);
+        Assert.Equal(current, result.ScanCompleted);
+        if (!current) Assert.Contains(result.Issues, issue => issue.Code == "ssis.discovery.context-changed");
+        Assert.DoesNotContain("synthetic-bounded-password", JsonSerializer.Serialize(result), StringComparison.Ordinal);
+    }
+
+    private sealed class GuardedSink(Func<bool> current) : IProviderDiscoverySink, IProviderDiscoveryContextGuard
+    {
+        public Task<bool> IsCurrentAsync(CancellationToken cancellationToken) => Task.FromResult(current());
+        public ValueTask AppendAsync(ProviderDiscoveryObservation observation, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+    }
+
     [Fact]
     public async Task Rehydrated_provider_type_is_discovered_by_its_canonical_value()
     {
@@ -232,9 +256,13 @@ public sealed class SsisProviderDiscoveryCapabilityTests
 
     private sealed class StubSqlExecutor(SsisMasterFacts facts) : ISsisSqlExecutor
     {
+        public int MasterCalls { get; private set; }
         public Task<SsisMasterFacts> ReadMasterFactsAsync(SsisProviderConfiguration configuration,
-            ReadOnlyMemory<char> password, SsisValidationOptions options, CancellationToken token) =>
-            Task.FromResult(facts);
+            ReadOnlyMemory<char> password, SsisValidationOptions options, CancellationToken token)
+        {
+            MasterCalls++;
+            return Task.FromResult(facts);
+        }
         public Task<SsisCatalogEvidence> ReadCatalogEvidenceAsync(SsisProviderConfiguration configuration,
             ReadOnlyMemory<char> password, SsisValidationOptions options, CancellationToken token) =>
             throw new InvalidOperationException("Execution capability evidence is outside discovery.");

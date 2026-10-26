@@ -8,7 +8,7 @@ namespace FlowPlane.Infrastructure.Persistence.Discovery;
 
 internal sealed class DiscoveryRefreshSession(
     ProviderDiscoveryInventoryStore store, ProviderInstance instance, DiscoveryGeneration generation)
-    : IProviderDiscoveryRefreshSession, IProviderDiscoverySink
+    : IProviderDiscoveryRefreshSession, IProviderDiscoverySink, IProviderDiscoveryContextGuard
 {
     private readonly List<DiscoveryObservationRecord> buffer = [];
     private int bufferedBytes;
@@ -18,6 +18,19 @@ internal sealed class DiscoveryRefreshSession(
     public ProviderInstance Instance => instance;
     public IProviderDiscoverySink Sink => this;
     public DiscoveryInventoryError? SinkFailure => failure;
+
+    public async Task<bool> IsCurrentAsync(CancellationToken cancellationToken)
+    {
+        await using var db = store.CreateContext();
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await DiscoveryDatabase.SetTimeoutsAsync(db, store.Options.ClaimTimeoutSeconds, cancellationToken);
+        var current = await DiscoveryDatabase.LockProviderAsync(db, instance.Id, cancellationToken);
+        var secretVersion = await DiscoveryDatabase.LockSecretAsync(db, current, cancellationToken);
+        await DiscoveryDatabase.LockClaimAsync(db, instance.Id, RefreshId, generation.FenceToken,
+            DiscoveryGenerationStatus.Staging, cancellationToken, generation.ExecutorId);
+        return current.IsEnabled && current.Version == generation.ProviderVersion &&
+            current.SecretReference == instance.SecretReference && secretVersion == generation.ManagedSecretVersion;
+    }
 
     public async ValueTask AppendAsync(ProviderDiscoveryObservation observation, CancellationToken cancellationToken)
     {
@@ -52,7 +65,7 @@ internal sealed class DiscoveryRefreshSession(
         await using var db = store.CreateContext();
         await using var transaction = await db.Database.BeginTransactionAsync(token);
         await DiscoveryDatabase.SetTimeoutsAsync(db, store.Options.PublicationTimeoutSeconds, token);
-        var claim = await DiscoveryDatabase.LockClaimAsync(db, instance.Id, RefreshId, generation.FenceToken, DiscoveryGenerationStatus.Staging, token);
+        var claim = await DiscoveryDatabase.LockClaimAsync(db, instance.Id, RefreshId, generation.FenceToken, DiscoveryGenerationStatus.Staging, token, generation.ExecutorId);
         foreach (var row in buffer)
         {
             var existing = await db.DiscoveryObservations.AsNoTracking().Where(item => item.ProviderInstanceId == instance.Id
@@ -90,7 +103,7 @@ internal sealed class DiscoveryRefreshSession(
             if (!current.IsEnabled || current.Version != generation.ProviderVersion || secretVersion != generation.ManagedSecretVersion
                 || current.SecretReference != instance.SecretReference)
                 throw new DiscoveryInventoryException(DiscoveryInventoryError.ContextChanged);
-            var claim = await DiscoveryDatabase.LockClaimAsync(db, instance.Id, RefreshId, generation.FenceToken, DiscoveryGenerationStatus.Ready, publication.Token);
+            var claim = await DiscoveryDatabase.LockClaimAsync(db, instance.Id, RefreshId, generation.FenceToken, DiscoveryGenerationStatus.Ready, publication.Token, generation.ExecutorId);
             if (claim.State.PublicationVersion != generation.ExpectedPublicationVersion || claim.State.CurrentGenerationId != generation.BaseGenerationId)
                 throw new DiscoveryInventoryException(DiscoveryInventoryError.Superseded);
             claim.Generation.Status = DiscoveryGenerationStatus.Published;
@@ -150,7 +163,7 @@ internal sealed class DiscoveryRefreshSession(
         {
             await using var transaction = await db.Database.BeginTransactionAsync(token);
             await DiscoveryDatabase.SetTimeoutsAsync(db, store.Options.PublicationTimeoutSeconds, token);
-            var claim = await DiscoveryDatabase.LockClaimAsync(db, instance.Id, RefreshId, generation.FenceToken, DiscoveryGenerationStatus.Staging, token);
+            var claim = await DiscoveryDatabase.LockClaimAsync(db, instance.Id, RefreshId, generation.FenceToken, DiscoveryGenerationStatus.Staging, token, generation.ExecutorId);
             if (!DiscoveryPublicationPolicy.CanPublish(summary, claim.Generation.ObservationCount, claim.Generation.CandidateCount))
                 throw new DiscoveryInventoryException(DiscoveryInventoryError.IncompleteScan);
             claim.Generation.Status = DiscoveryGenerationStatus.Preparing;
@@ -169,11 +182,12 @@ internal sealed class DiscoveryRefreshSession(
         await using var ready = store.CreateContext();
         await using var readyTransaction = await ready.Database.BeginTransactionAsync(token);
         await DiscoveryDatabase.SetTimeoutsAsync(ready, store.Options.PublicationTimeoutSeconds, token);
-        var final = await DiscoveryDatabase.LockClaimAsync(ready, instance.Id, RefreshId, generation.FenceToken, DiscoveryGenerationStatus.Preparing, token);
+        var final = await DiscoveryDatabase.LockClaimAsync(ready, instance.Id, RefreshId, generation.FenceToken, DiscoveryGenerationStatus.Preparing, token, generation.ExecutorId);
         if (!DiscoveryPublicationPolicy.CanPublish(summary, durable.Observations, durable.Candidates)
             || checked(final.Generation.AddedCount + final.Generation.ChangedCount + final.Generation.UnchangedCount) != durable.Observations)
             throw new DiscoveryInventoryException(DiscoveryInventoryError.IncompleteScan);
         final.Generation.Status = DiscoveryGenerationStatus.Ready;
+        if (generation.RequestingIssuer is not null) final.Generation.PublicationAttemptedAtUtc = final.Now;
         final.Generation.Version = checked(final.Generation.Version + 1);
         await ready.SaveChangesAsync(token);
         await readyTransaction.CommitAsync(token);
@@ -196,7 +210,7 @@ internal sealed class DiscoveryRefreshSession(
             await using var db = store.CreateContext();
             await using var transaction = await db.Database.BeginTransactionAsync(token);
             await DiscoveryDatabase.SetTimeoutsAsync(db, store.Options.PublicationTimeoutSeconds, token);
-            var claim = await DiscoveryDatabase.LockClaimAsync(db, instance.Id, RefreshId, generation.FenceToken, DiscoveryGenerationStatus.Preparing, token);
+            var claim = await DiscoveryDatabase.LockClaimAsync(db, instance.Id, RefreshId, generation.FenceToken, DiscoveryGenerationStatus.Preparing, token, generation.ExecutorId);
             var rows = await Page(db, instance.Id, RefreshId, cursor, store.Options.WriteBatchSize)
                 .Select(row => new { row.NativeKeyDigest, row.NativeKey, row.ContentFingerprint, row.CandidateSchemaId }).ToListAsync(token);
             if (rows.Count == 0) return (observations, candidates);
@@ -230,7 +244,7 @@ internal sealed class DiscoveryRefreshSession(
             await using var db = store.CreateContext();
             await using var transaction = await db.Database.BeginTransactionAsync(token);
             await DiscoveryDatabase.SetTimeoutsAsync(db, store.Options.PublicationTimeoutSeconds, token);
-            var claim = await DiscoveryDatabase.LockClaimAsync(db, instance.Id, RefreshId, generation.FenceToken, DiscoveryGenerationStatus.Preparing, token);
+            var claim = await DiscoveryDatabase.LockClaimAsync(db, instance.Id, RefreshId, generation.FenceToken, DiscoveryGenerationStatus.Preparing, token, generation.ExecutorId);
             // Project only identity/provenance: no previous metadata payload is read into memory.
             var rows = await Page(db, instance.Id, baseId, cursor, store.Options.WriteBatchSize).Select(row => new
             {

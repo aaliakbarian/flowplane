@@ -33,7 +33,7 @@ public sealed class DiscoveryInventoryMigrationTests(ITestOutputHelper output)
         var sql = sqlScope.ServiceProvider.GetRequiredService<FlowPlaneDbContext>();
         var migrator = sql.GetService<IMigrator>();
         await migrator.MigrateAsync(A09, token);
-        var script = migrator.GenerateScript(A09, "20261020082907_CurrentDiscoveryInventory");
+        var script = migrator.GenerateScript(A09);
         await sql.Database.ExecuteSqlRawAsync(script, token);
         const string catalog = """
             SELECT description AS "Value" FROM (
@@ -51,7 +51,7 @@ public sealed class DiscoveryInventoryMigrationTests(ITestOutputHelper output)
         var expected = await ef.Database.SqlQueryRaw<string>(catalog).ToListAsync(token);
         var actual = await sql.Database.SqlQueryRaw<string>(catalog).ToListAsync(token);
         Assert.Equal(expected, actual);
-        Assert.Equal(3, (await sql.Database.GetAppliedMigrationsAsync(token)).Count());
+        Assert.Equal(4, (await sql.Database.GetAppliedMigrationsAsync(token)).Count());
         foreach (var line in actual) output.WriteLine(line); // Schema only: never rows or connection configuration.
     }
 
@@ -79,7 +79,7 @@ public sealed class DiscoveryInventoryMigrationTests(ITestOutputHelper output)
             var ciphertext = (await db.SecretRecords.AsNoTracking().SingleAsync(token)).Ciphertext;
             await migrator.MigrateAsync(cancellationToken: token);
             await migrator.MigrateAsync(cancellationToken: token);
-            Assert.Equal(3, (await db.Database.GetAppliedMigrationsAsync(token)).Count());
+            Assert.Equal(4, (await db.Database.GetAppliedMigrationsAsync(token)).Count());
             var tables = await db.Database.SqlQueryRaw<string>("SELECT table_name AS \"Value\" FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name").ToListAsync(token);
             Assert.Equal(new[] { "DataProtectionKeys", "FlowPlaneSecrets", "ProviderDiscoveryGenerations", "ProviderDiscoveryObservations", "ProviderDiscoveryStates", "ProviderInstances", "__EFMigrationsHistory" }, tables);
             Assert.Equal(ciphertext, (await db.SecretRecords.AsNoTracking().SingleAsync(token)).Ciphertext);
@@ -92,7 +92,7 @@ public sealed class DiscoveryInventoryMigrationTests(ITestOutputHelper output)
             Assert.Equal(ciphertext, (await db.SecretRecords.AsNoTracking().SingleAsync(token)).Ciphertext);
             Assert.Equal(instance.Id, (await db.ProviderInstances.AsNoTracking().SingleAsync(token)).Id);
             await migrator.MigrateAsync(cancellationToken: token);
-            Assert.Equal(3, (await db.Database.GetAppliedMigrationsAsync(token)).Count());
+            Assert.Equal(4, (await db.Database.GetAppliedMigrationsAsync(token)).Count());
         }
         finally { Directory.Delete(directory, true); }
     }
@@ -128,7 +128,7 @@ public sealed class DiscoveryInventoryMigrationTests(ITestOutputHelper output)
         await Rejected($"DELETE FROM \"ProviderInstances\" WHERE \"Id\" = {first}", PostgresErrorCodes.RestrictViolation);
 
         var indexes = await db.Database.SqlQueryRaw<string>("SELECT indexdef AS \"Value\" FROM pg_indexes WHERE schemaname = 'public' AND tablename LIKE 'ProviderDiscovery%'").ToListAsync(token);
-        Assert.Equal(12, indexes.Count);
+        Assert.Equal(13, indexes.Count);
         Assert.Contains(indexes, value => value.Contains("UNIQUE INDEX \"UX_DiscoveryGeneration_ActiveClaim\"", StringComparison.Ordinal) && value.Contains("Staging", StringComparison.Ordinal) && value.Contains("Preparing", StringComparison.Ordinal) && value.Contains("Ready", StringComparison.Ordinal));
         Assert.Contains(indexes, value => value.Contains("CandidateSchemaId", StringComparison.Ordinal) && value.Contains("WHERE", StringComparison.Ordinal) && value.Contains("Observed", StringComparison.Ordinal));
         var foreignKeys = await db.Database.SqlQueryRaw<string>("SELECT pg_get_constraintdef(oid) AS \"Value\" FROM pg_constraint WHERE contype = 'f' AND conrelid IN ('\"ProviderDiscoveryStates\"'::regclass, '\"ProviderDiscoveryGenerations\"'::regclass, '\"ProviderDiscoveryObservations\"'::regclass)").ToListAsync(token);

@@ -47,7 +47,8 @@ internal static class DiscoveryDatabase
             """, token);
 
     public static async Task<(DiscoveryState State, DiscoveryGeneration Generation, DateTimeOffset Now)> LockClaimAsync(
-        FlowPlaneDbContext db, Guid providerId, Guid refreshId, long fence, DiscoveryGenerationStatus phase, CancellationToken token)
+        FlowPlaneDbContext db, Guid providerId, Guid refreshId, long fence, DiscoveryGenerationStatus phase, CancellationToken token,
+        Guid? executorId = null)
     {
         var state = await LockStateAsync(db, providerId, token);
         if (state is null || state.Lifecycle != DiscoveryStateLifecycle.Active || state.InFlightGenerationId != refreshId || state.FenceToken != fence)
@@ -55,6 +56,9 @@ internal static class DiscoveryDatabase
         var generation = await db.DiscoveryGenerations.SingleAsync(row => row.RefreshId == refreshId, token);
         var now = await NowAsync(db, token);
         if (generation.ExpiresAtUtc <= now) throw new DiscoveryInventoryException(DiscoveryInventoryError.Expired);
+        if (generation.RequestingIssuer is not null && (executorId is null || generation.ExecutorId != executorId ||
+            generation.ExecutionSlot != 1 || generation.LeaseExpiresAtUtc is null || generation.LeaseExpiresAtUtc <= now))
+            throw new DiscoveryInventoryException(DiscoveryInventoryError.Superseded);
         if (generation.Status != phase) throw new DiscoveryInventoryException(DiscoveryInventoryError.Superseded);
         return (state, generation, now);
     }

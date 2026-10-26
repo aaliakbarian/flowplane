@@ -8,6 +8,43 @@ namespace FlowPlane.ProviderConfiguration.Tests;
 public sealed class ProviderDiscoveryRefreshTests
 {
     [Fact]
+    public async Task Unavailable_native_scan_remains_unavailable_rather_than_a_definition_failure()
+    {
+        var store = new Store();
+        var capability = new Capability(store.Session.Instance.ProviderType, (_, _, _) =>
+        {
+            var now = DateTimeOffset.UtcNow;
+            return Task.FromResult(new ProviderDiscoveryScanResult(ProviderDiscoveryOutcome.Unavailable, false,
+                ProviderDiscoverySourceCompatibility.Unknown, 0, 0, 0, now, now, []));
+        });
+        var result = await new ProviderDiscoveryRefreshService(store, [capability], new())
+            .ExecuteAcceptedAsync(store.Session, TestContext.Current.CancellationToken);
+        Assert.Equal(DiscoveryPublicationStatus.NotPublished, result.Status);
+        Assert.Equal(DiscoveryInventoryError.ProviderUnavailable, result.Error);
+        Assert.True(store.Session.Aborted);
+    }
+
+    [Theory]
+    [InlineData(DiscoveryPublicationStatus.Published)]
+    [InlineData(DiscoveryPublicationStatus.Uncertain)]
+    public async Task Accepted_generation_is_executed_without_acquiring_a_second_claim(DiscoveryPublicationStatus expected)
+    {
+        var store = new Store { Session = new Session { PublicationStatus = expected } };
+        var capability = new Capability(store.Session.Instance.ProviderType, (_, _, _) =>
+        {
+            var now = DateTimeOffset.UtcNow;
+            return Task.FromResult(new ProviderDiscoveryScanResult(ProviderDiscoveryOutcome.Succeeded, true,
+                ProviderDiscoverySourceCompatibility.Compatible, 0, 0, 0, now, now, []));
+        });
+        var result = await new ProviderDiscoveryRefreshService(store, [capability], new())
+            .ExecuteAcceptedAsync(store.Session, TestContext.Current.CancellationToken);
+        Assert.Equal(expected, result.Status);
+        Assert.Equal(store.Session.RefreshId, result.RefreshId);
+        Assert.Equal(0, store.Claims);
+        Assert.False(store.Session.Aborted);
+    }
+
+    [Fact]
     public async Task Rehydrated_provider_type_selects_capability_by_value_not_object_identity()
     {
         var store = new Store();
@@ -97,8 +134,13 @@ public sealed class ProviderDiscoveryRefreshTests
     }
     private sealed class Store : IProviderDiscoveryInventoryStore
     {
+        public int Claims { get; private set; }
         public Session Session { get; init; } = new();
-        public Task<IProviderDiscoveryRefreshSession> BeginRefreshAsync(Guid id, CancellationToken token) => Task.FromResult<IProviderDiscoveryRefreshSession>(Session);
+        public Task<IProviderDiscoveryRefreshSession> BeginRefreshAsync(Guid id, CancellationToken token)
+        {
+            Claims++;
+            return Task.FromResult<IProviderDiscoveryRefreshSession>(Session);
+        }
         public Task<ProviderDiscoveryRefreshResult> ReconcileAsync(Guid id, CancellationToken token) => throw new NotSupportedException();
         public Task CleanupAsync(Guid id, CancellationToken token) => throw new NotSupportedException();
         public Task<IProviderDiscoveryInventoryReader> OpenReaderAsync(Guid id, Guid refresh, CancellationToken token) => throw new NotSupportedException();
