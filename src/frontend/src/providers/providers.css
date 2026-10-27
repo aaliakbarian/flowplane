@@ -1,0 +1,10 @@
+.provider-workspace { max-width: 70rem; margin: 2rem auto; font: 1rem/1.5 system-ui,sans-serif; color: #182c3e; padding: 1rem; }
+.provider-workspace section { border: 1px solid #b5c7d6; border-radius: .4rem; padding: 1rem; margin-block: 1rem; }
+.provider-workspace label { display: block; margin-block: .65rem; }
+.provider-workspace input:not([type=checkbox]) { display: block; width: min(100%,28rem); padding: .45rem; box-sizing: border-box; }
+.provider-workspace button,.provider-workspace select { padding: .5rem .8rem; margin: .25rem; }
+.provider-workspace button:focus-visible,.provider-workspace input:focus-visible { outline: 3px solid #236db0; outline-offset: 2px; }
+.provider-workspace [role=alert] { color: #8a1b1b; }
+.provider-workspace dl { display: grid; grid-template-columns: minmax(8rem,1fr) minmax(0,3fr); gap: .3rem; }
+.provider-workspace dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.provider-workspace nav { display: flex; gap: .3rem; flex-wrap: wrap; }

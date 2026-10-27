@@ -8,6 +8,14 @@ type Fetcher = (
   init?: RequestInit,
 ) => Promise<Response>
 
+export class IdentityRequestError extends Error {
+  readonly status: number
+  constructor(status: number) {
+    super(`The identity request failed with status ${status}`)
+    this.status = status
+  }
+}
+
 export async function getCurrentIdentity(
   accessToken: string,
   fetcher: Fetcher = fetch,
@@ -21,7 +29,7 @@ export async function getCurrentIdentity(
   })
 
   if (!response.ok) {
-    throw new Error(`The identity request failed with status ${response.status}`)
+    throw new IdentityRequestError(response.status)
   }
 
   return response.json() as Promise<FlowPlaneIdentity>
