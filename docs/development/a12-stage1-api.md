@@ -1,7 +1,9 @@
 # A-12 Stage 1 — secure configuration and validation
 
-This implements only the approved Stage 1 of issue #13. Discovery admission,
-inventory browsing, background execution, Gate B and UI remain deferred.
+This describes the Stage 1 increment of issue #13. Subsequent increments provide
+[durable discovery hosting](a12-stage2-discovery.md), [inventory browsing](a12-stage3-inventory.md)
+and the [operator UI](a12-stage4-ui.md); their [real live evidence](milestones/milestone-a-live-acceptance.md)
+is separate from Stage 1's original test gate.
 
 ## Execution and review plan
 
@@ -10,10 +12,12 @@ inventory browsing, background execution, Gate B and UI remain deferred.
 3. RED/GREEN: real PostgreSQL atomic creation/replacement, missing protection and redaction.
 4. Full Release, architecture, security/audit and formatting checks; independent review.
 
-No normal-development credential writes are permitted while independent off-host
-root-certificate backup remains pending. Test writes use disposable PostgreSQL
-databases and synthetic credentials with separate disposable protection material.
-No migration or startup migration is needed. No accepted ADR changes are made.
+Stage 1 automated write tests use disposable PostgreSQL databases and synthetic
+credentials with separate disposable protection material. The later approved
+[disposable-development policy](milestones/milestone-a-live-acceptance.md#disposable-development-data-and-deployment-readiness)
+permits explicitly authorized live test credentials in the normal development
+database without an off-host-backup prerequisite. Encryption and authorization
+are unchanged. Stage 1 itself adds no migration or startup migration.
 
 ## Operator configuration
 
@@ -44,7 +48,8 @@ firewall. The API rechecks the list before configuration writes and validation.
 Apply operator/endpoint configuration through backend environment or a private
 Compose override and restart the backend; these policies are startup snapshots,
 not a hot-reload security-control API. No operators or destinations are enabled
-by default. Root-certificate backup must precede real credential onboarding.
+by default. Non-disposable deployments retain ADR-0006 recovery requirements;
+disposable local acceptance follows the separate development policy above.
 Mandatory encryption and certificate validation are unchanged; explicit
 `trustServerCertificate: true` is permitted only in Development.
 

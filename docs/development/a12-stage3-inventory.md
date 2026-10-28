@@ -109,7 +109,9 @@ NotObserved exclusion, cursors, authorization, credential/configuration/publicat
 races, native denial/unavailability, metadata changes and Int64 precision.
 
 The previously declined normal-backend key usability probe and sensitive-log scan
-remain unexecuted. These feature tests do not replace them. Independent off-host
-PFX/current-database backup remains pending; no persistent real credentials may
-be created in the normal development database. Gate B and Accepted ADRs are
-unchanged. Stage 4 UI and issue closure require separate authorization.
+remain Not Executed; these feature tests do not replace them. Later approved
+[live acceptance](milestones/milestone-a-live-acceptance.md) used the Stage 4 UI
+and one disposable managed credential in the normal development database.
+Off-host recovery remains deployment-readiness work, not a prerequisite for
+those explicitly disposable records. Gate B and Accepted ADRs are unchanged;
+issue closure still requires separate authorization.

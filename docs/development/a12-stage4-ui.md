@@ -45,10 +45,14 @@ Reuse React/TypeScript/Vite/Vitest/OIDC pins; no new dependencies.
   can restart an existing continuation at page one; native mismatches need refresh.
 - Browser navigation stops status observation, not accepted backend work.
 
-No host Node/npm, UI frameworks, migrations, native mutations, real development
-credential onboarding, declined backend probes, accepted ADR edits or commits.
-Off-host root/current-database backup and authorized live operator onboarding
-remain operational acceptance prerequisites, not mocked-browser evidence.
+The implementation introduced no host Node/npm, UI frameworks, migrations or
+native mutations and did not run the declined backend probes or change Accepted
+ADRs. Its mocked browser tests were not live acceptance. The separately approved
+[real live journey](milestones/milestone-a-live-acceptance.md) subsequently used
+one disposable development provider/credential in both Nginx modes. Independent
+off-host recovery remains future deployment-readiness work, not a disposable
+development acceptance gate. No implicit authorization for more credential
+onboarding, external mutations, commits or issue closure follows from this guide.
 
 UUIDv7 follows the [RFC 9562 layout and independent example vector](https://www.rfc-editor.org/rfc/rfc9562.html#section-5.7).
 Only its 48-bit timestamp and version/variant fields are set; remaining bits come

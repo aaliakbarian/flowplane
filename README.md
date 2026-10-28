@@ -4,9 +4,9 @@ FlowPlane is an early-stage open-source control plane for external data-pipeline
 
 ## Status
 
-FlowPlane is implementing an SSIS-first MVP and is not production-ready. The development foundation is working: a .NET backend, React/Vite frontend, Nginx browser entry point, PostgreSQL baseline and readiness, Keycloak/OIDC login, development and production-style frontend containers, and repository CI.
+FlowPlane is implementing an SSIS-first MVP and is not production-ready. The development foundation and secure SSIS configuration/discovery journey are implemented: a .NET backend, React/Vite frontend, Nginx browser entry point, PostgreSQL, Keycloak/OIDC, encrypted provider credentials, validation, durable asynchronous discovery and native-visibility-checked inventory browsing.
 
-Provider work is next. SSIS `ProviderInstance` configuration, connectivity, discovery, execution, Control Flow visualization, and recurring scheduling are not implemented yet.
+The [Milestone A live acceptance record](docs/development/milestones/milestone-a-live-acceptance.md) distinguishes real browser-to-SSISDB evidence from mocked tests and records completed implementation acceptance with GitHub closure pending. Pipeline registration, native SSIS execution, Control Flow visualization and recurring scheduling remain unimplemented.
 
 ## What FlowPlane is
 
@@ -14,7 +14,7 @@ FlowPlane is a provider-independent Control Plane over external Data-Pipeline Pr
 
 ## Current MVP direction
 
-The implemented foundation authenticates through standard OIDC with development Keycloak and uses PostgreSQL for FlowPlane-owned state. Later MVP slices will add SSIS discovery, registration and execution monitoring, read-only Control Flow visualization, and recurring scheduling. Those capabilities are direction, not claims about the current implementation.
+The implemented slice authenticates through standard OIDC with development Keycloak and uses PostgreSQL for FlowPlane-owned state and current observed discovery inventory. An explicitly authorized operator can configure a provider, validate it, request a complete discovery refresh, recover its durable status after reload and browse eligible entry points. Later MVP slices cover registration, execution/monitoring, read-only Control Flow visualization and recurring scheduling; those remain direction, not current behavior.
 
 ## Architecture
 
@@ -57,7 +57,7 @@ docker compose --env-file deploy/compose/.env -f deploy/compose/compose.yaml up 
 
 Open `http://127.0.0.1:8080`. Nginx serves the browser origin, sends `/api/*` to the backend, and sends other traffic to the containerized Vite server with HMR. Sign in through Keycloak using the development test identity configured in the ignored `deploy/compose/.env`; never reuse those local-only values outside development.
 
-Apply the empty PostgreSQL baseline migration explicitly; the API does not migrate automatically on startup. The wrapper asks Docker Compose to parse `.env` as data, then invokes the repository-pinned EF tool without printing credentials:
+Apply the committed PostgreSQL migrations explicitly; the current schema has four migrations and seven public tables. The API does not migrate automatically on startup. The wrapper asks Docker Compose to parse `.env` as data, then invokes the repository-pinned EF tool without printing credentials:
 
 ```sh
 sh deploy/compose/apply-migrations.sh
@@ -79,6 +79,8 @@ docker compose --env-file deploy/compose/.env -f deploy/compose/compose.yaml dow
 ```
 
 The foundation boots without SQL Server, SSISDB, or SSIS configuration.
+
+For provider use, follow the [Compose secret/runtime guide](deploy/compose/README.md), [operator/endpoint API configuration](docs/development/a12-stage1-api.md), [discovery-hosting configuration](docs/development/a12-stage2-discovery.md#configuration-and-gate-b-operation) and [operator UI guide](docs/development/a12-stage4-ui.md). Login alone does not grant provider administration. Disposable local acceptance data does not require production disaster-recovery infrastructure; [production recovery requirements remain separate](docs/development/milestones/milestone-a-live-acceptance.md#disposable-development-data-and-deployment-readiness).
 
 ## Production-style frontend verification
 

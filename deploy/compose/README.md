@@ -17,14 +17,21 @@ PostgreSQL is available to WSL at `127.0.0.1:${FLOWPLANE_POSTGRES_PORT}` and sto
 
 ## Production-style frontend path
 
-Stop the default development stack before using the alternate production-style frontend because both modes intentionally use the same FlowPlane browser port. Then start the targeted profiled service from the repository root:
+Both frontend modes intentionally use the same FlowPlane browser port. When switching an already healthy development stack, stop only development Nginx and start the static frontend without recreating its backend, PostgreSQL or Keycloak dependencies:
 
 ```sh
-docker compose --env-file deploy/compose/.env -f deploy/compose/compose.yaml down
-docker compose --env-file deploy/compose/.env -f deploy/compose/compose.yaml --profile production up --build --wait frontend-production
+docker compose --env-file deploy/compose/.env -f deploy/compose/compose.yaml stop nginx
+docker compose --env-file deploy/compose/.env -f deploy/compose/compose.yaml --profile production up --build --no-deps --wait frontend-production
 ```
 
-Targeting `frontend-production` is deliberate. Compose starts only that service and its backend, PostgreSQL, and Keycloak dependencies; it does not start the development `nginx` or `frontend-dev` services, so there is no host-port collision. The browser origin remains `http://127.0.0.1:${FLOWPLANE_HTTP_PORT}` (`8080` by default), while Keycloak remains at port `8081` by default.
+Use the same environment file and all existing private/secrets overrides on every command. `--no-deps` requires backend, PostgreSQL and Keycloak to be running and healthy already; for a fresh startup, bring up those approved dependencies first. Do not recreate Keycloak just to switch frontend modes: its development data has no persistent volume, so recreation can invalidate the operator subject bootstrap. Targeting only `frontend-production` avoids starting development Nginx on the same port. The browser origin remains `http://127.0.0.1:${FLOWPLANE_HTTP_PORT}` (`8080` by default), while Keycloak remains at port `8081` by default.
+
+Restore the original development Nginx after verification:
+
+```sh
+docker compose --env-file deploy/compose/.env -f deploy/compose/compose.yaml stop frontend-production
+docker compose --env-file deploy/compose/.env -f deploy/compose/compose.yaml start --wait nginx
+```
 
 The production target builds React/TypeScript with Vite, copies `dist/` into `nginx:1.30.5-alpine3.24`, serves hashed assets directly, falls back to `index.html` for non-API SPA paths such as `/oidc/callback`, and preserves the same `/api/` prefix-stripping proxy behavior as development. It does not contain or run Node.js or Vite. The OIDC authority and public client ID are build-time browser configuration, not secrets; a different public authority requires rebuilding this static image.
 
@@ -59,7 +66,15 @@ The generator uses a restrictive `umask` and sets the PFX to mode `0400`. `compo
 
 FlowPlane persists authenticated provider-secret ciphertext and the Data Protection key ring in PostgreSQL. The key ring is explicitly protected by the external certificate. Back up PostgreSQL data and the required certificate/private key separately: a database backup alone cannot decrypt provider credentials, while loss of the certificate can make them unrecoverable. Retain old Data Protection keys and overlapping root certificates for existing ciphertext during future rotation. ASP.NET Core Data Protection is intentionally used for application-owned, replaceable provider credentials; it is not claimed as a general indefinite archival secret system.
 
-## Apply the PostgreSQL baseline migration
+For explicitly disposable local acceptance data, loss and re-entry of test credentials is accepted: independent off-host PFX backup, a backup before every test and an extra acceptance database are not prerequisites. Do not delete/regenerate existing root material or relax encryption/permissions during testing. Recoverable non-disposable and production deployments retain the backup/recovery requirements above. See the [development policy and live evidence](../../docs/development/milestones/milestone-a-live-acceptance.md#disposable-development-data-and-deployment-readiness).
+
+## Provider runtime preparation
+
+Authentication alone does not authorize provider administration. Configure exact `FlowPlane:Operators:Allowed` pairs using the configured OIDC issuer and subject obtained from authenticated `/api/me`, and exact `FlowPlane:Ssis:AllowedEndpoints` host/port pairs, through a private backend-only override. Empty policies deny access; never enable a wildcard endpoint or accept browser-selected secret locators. See the [Stage 1 contract](../../docs/development/a12-stage1-api.md).
+
+After explicit application of all committed migrations, `FlowPlane__DiscoveryHosting__Enabled=true` enables the existing discovery-specific runner. It defaults to false. Preserve the private operator/endpoint configuration and secret override when recreating only the backend to apply settings. See [hosting configuration](../../docs/development/a12-stage2-discovery.md#configuration-and-gate-b-operation), [inventory disclosure](../../docs/development/a12-stage3-inventory.md) and the [UI journey](../../docs/development/a12-stage4-ui.md). Startup does not create providers or admit new refreshes; the runner may recover already accepted work.
+
+## Apply committed PostgreSQL migrations
 
 Migrations are explicit and are not applied automatically when the application starts. From the repository root, use the wrapper to resolve the ignored Compose environment file as data, restore the pinned local EF tool, and apply migrations to the WSL-accessible PostgreSQL port:
 
@@ -67,7 +82,7 @@ Migrations are explicit and are not applied automatically when the application s
 sh deploy/compose/apply-migrations.sh
 ```
 
-The wrapper does not source `.env` as shell code and does not print the resolved password. Pass a different environment-file path as its only argument when needed. The A-09 migration adds only `ProviderInstances`, encrypted `FlowPlaneSecrets`, and the protected Data Protection key ring alongside EF Core's `__EFMigrationsHistory`; it adds no Pipeline, Run, Schedule, discovery cache, or SSIS hierarchy. Running the wrapper again is the supported idempotency check for the development bootstrap path.
+The wrapper does not source `.env` as shell code and does not print the resolved password. Pass a different environment-file path as its only argument when needed. The current committed schema has four migrations and seven public tables: `__EFMigrationsHistory`, `ProviderInstances`, `FlowPlaneSecrets`, `DataProtectionKeys`, `ProviderDiscoveryStates`, `ProviderDiscoveryGenerations` and `ProviderDiscoveryObservations`. A-09 introduced provider/secret/key-ring storage; A-11b added current inventory; Gate B added hosting/ownership fields without new tables. No Pipeline, Run, Schedule, native-history or sensitive-value storage is introduced. Review upgrades before applying them to an existing database; running the wrapper again is the supported idempotency check. This documentation review does not apply any migration.
 
 SQL Server, SSISDB, and SSIS remain external to this stack and are not required for startup.
 

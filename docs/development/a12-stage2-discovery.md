@@ -8,6 +8,8 @@
 
 **Tech stack:** Existing .NET 10, EF Core/Npgsql/PostgreSQL 18, ASP.NET Core BackgroundService and xUnit. No new dependencies.
 
+**Historical gate context:** The authorization restrictions and execution ledger below record the original Stage 2 review, before normal-development Gate B application. The [live acceptance record](milestones/milestone-a-live-acceptance.md) records the subsequently approved four-migration development runtime and hosted refresh. Earlier three-migration/no-onboarding statements are not current runtime assertions. No migration application or issue closure is authorized by this document alone.
+
 ## Constraints and decisions
 
 - Work in the authoritative main checkout, as requested; preserve the approved baseline and never commit automatically.

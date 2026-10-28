@@ -34,6 +34,8 @@ SSIS execution, `Pipeline` registration, `Run`/`RunAttempt`, scheduling, graph v
 
 The task sections are the authoritative detail. This checklist records source-controlled implementation progress for navigation; the GitHub issues and Milestone remain the live review/status tracker.
 
+Closure review note (2026-10-28): the [live acceptance and source evidence](milestone-a-live-acceptance.md) confirms the original product exit criteria for A-10, A-11 and A-12, including the closed A-11a/A-11b issues. All twelve tasks are Complete and checked. A-12 issue #13, parent #1 and the GitHub milestone remain open pending explicit closure after documentation review and Foundation CI; this reconciliation authorizes no new implementation or issue closure.
+
 - [x] A-01 Minimum development foundation
 - [x] A-02 Minimal backend host and container path
 - [x] A-03 Containerized frontend development foundation
@@ -43,9 +45,9 @@ The task sections are the authoritative detail. This checklist records source-co
 - [x] A-07 Production-style frontend path
 - [x] A-08 Milestone 0 closure
 - [x] A-09 Minimal provider configuration and secret boundary
-- [ ] A-10 SSIS connectivity and capability validation
-- [ ] A-11 Read-only SSIS discovery
-- [ ] A-12 Thin configuration/discovery API and UI
+- [x] A-10 SSIS connectivity and capability validation
+- [x] A-11 Read-only SSIS discovery
+- [x] A-12 Thin configuration/discovery API and UI
 
 ## Environment baseline
 
@@ -80,9 +82,9 @@ Unless identified as an accepted architectural constraint, the choices below are
 - **Backend test stack — implementation recommendation:** xUnit, plus ASP.NET Core integration-test support where required.
 - **Frontend test stack — implementation recommendation:** Vitest and React Testing Library.
 - **Browser test stack — implementation recommendation:** Playwright for a limited set of critical browser journeys.
-- **Development secrets — implementation recommendation:** resolve development `SecretReference` values from controlled environment-backed configuration or ignored local overrides. Do not persist or log raw secrets.
+- **Provider secrets — accepted ADR-0006 refinement:** `flowplane:` is the normal built-in encrypted store, with PostgreSQL-persisted Data Protection keys explicitly protected by external X.509 root material. `env:` remains development/testing/bootstrap-only. Never persist plaintext credentials or expose locators through the API.
 - **Portable SSIS authentication baseline — implementation recommendation:** use a dedicated least-privilege SQL login over an encrypted Microsoft.Data.SqlClient connection. Any development certificate-trust exception must be explicit and must not become the production default.
-- **Background work:** do not select or implement a scheduler or background execution mechanism during Milestone A.
+- **Background work — approved A-12 refinement:** one discovery-specific BackgroundService in the existing backend executes already accepted, durably fenced PostgreSQL refreshes. This does not select a workflow scheduler, external queue or native execution worker; see the [Stage 2 contract](../a12-stage2-discovery.md).
 
 Exact package patches and image digests are local implementation choices that must be verified and recorded in the first task that uses them. They are not hidden architecture decisions or permanent support promises.
 
@@ -509,7 +511,7 @@ The GitHub-hosted `.github/workflows/foundation.yml` workflow completed successf
 
 ### Goal and scope
 
-Add only the provider-independent concepts and contracts required to configure a provider instance, validate it, and request discovery. Add the minimal SSIS-specific configuration representation behind the provider boundary, persist only non-secret provider-instance configuration, and resolve development credentials through `SecretReference`.
+Add only the provider-independent concepts and contracts required to configure a provider instance, validate it, and request discovery. Keep SSIS-specific configuration behind the provider boundary. Under Accepted ADR-0006, ProviderInstance persists non-secret configuration and SecretReference only; the separate built-in store persists encrypted credentials and an externally protected Data Protection key ring. Environment resolution remains a limited development/testing/bootstrap path, not the default credential store.
 
 Before implementation, perform the narrow Slice 1 API, persistence, and security checkpoint required by the MVP implementation plan.
 
@@ -533,8 +535,8 @@ Before implementation, perform the narrow Slice 1 API, persistence, and security
 - provider-instance domain/application behavior;
 - validation and discovery application contracts;
 - SSIS-specific provider configuration;
-- `SecretReference` development resolution;
-- minimal provider-instance persistence and migration; and
+- built-in managed-secret and limited environment `SecretReference` resolution;
+- provider-instance, encrypted-secret and protected key-ring persistence/migration; and
 - security and architecture tests.
 
 ### RED verification
@@ -557,7 +559,7 @@ FlowPlane can represent and persist a configured provider instance safely and re
 
 ## A-10 — SSIS connectivity and capability validation
 
-**Status:** Planned
+**Status:** Complete
 
 ### Goal and scope
 
@@ -606,7 +608,7 @@ The Linux/container-compatible backend validates a supported external SSISDB con
 
 ## A-11 — Read-only SSIS discovery
 
-**Status:** Planned
+**Status:** Complete
 
 ### Goal and scope
 
@@ -614,12 +616,12 @@ Scan every currently visible SSISDB folder/project and all approved current pack
 
 Persist the current observations in FlowPlane PostgreSQL using unpublished staging generations and atomic publication after complete scan verification. SSISDB remains authoritative, and a failed/interrupted refresh retains the previous complete inventory. Scan completeness is separate from definition compatibility. Discovery remains read-only against SSISDB, creates no Pipeline and retrieves no ISPAC.
 
-This approved refinement supersedes the earlier total-result bounds and inventory-persistence exclusion. It is decomposed under parent [issue #12](https://github.com/aaliakbarian/flowplane/issues/12); the detailed [A-11a/A-11b implementation plan](a11-discovery-implementation-plan.md) records RED/GREEN steps and the existing-work preservation review. GitHub remains the live tracker; the existing uncommitted implementation is not completed acceptance of the refined scope.
+This approved refinement supersedes the earlier total-result bounds and inventory-persistence exclusion. It is decomposed under parent [issue #12](https://github.com/aaliakbarian/flowplane/issues/12); the detailed [A-11a/A-11b implementation plan](a11-discovery-implementation-plan.md) records RED/GREEN steps and the existing-work preservation review. Both children and parent #12 are closed following implementation and representative real acceptance; the [live acceptance record](milestone-a-live-acceptance.md) links the committed evidence. GitHub remains the live tracker.
 
-| Child task | Planning status | Dependency | Deliverable |
+| Child task | Status | Dependency | Deliverable |
 | --- | --- | --- | --- |
-| [A-11a / #14 — Complete read-only SSIS scan](https://github.com/aaliakbarian/flowplane/issues/14) | Planned | A-10 and implementation approval | Complete streaming observations and terminal scan summary |
-| [A-11b / #15 — Current discovery inventory publication](https://github.com/aaliakbarian/flowplane/issues/15) | Planned; blocked by A-11a | Reviewed A-11a contract and acceptance; migration/security review | Durable credential-scoped inventory with atomic publication |
+| [A-11a / #14 — Complete read-only SSIS scan](https://github.com/aaliakbarian/flowplane/issues/14) | Complete | A-10 and implementation approval | Complete streaming observations and terminal scan summary |
+| [A-11b / #15 — Current discovery inventory publication](https://github.com/aaliakbarian/flowplane/issues/15) | Complete | Reviewed A-11a contract and acceptance; migration/security review | Durable credential-scoped inventory with atomic publication |
 
 The order is A-10 -> A-11a -> A-11b -> parent A-11 acceptance -> A-12. This documentation/issue reconciliation authorizes neither implementation nor a commit.
 
@@ -676,11 +678,13 @@ Both child tasks are reviewed and accepted. Each invocation scans all visible pr
 
 ## A-12 — Thin configuration/discovery API and UI
 
-**Status:** Planned
+**Status:** Complete
+
+Implementation and real live acceptance are complete; GitHub issue #13 remains open pending the final closure approval.
 
 ### Goal and scope
 
-Define and implement only the Slice 1 REST contract and minimal authenticated UI needed to configure an external SSIS provider instance, validate it, and view executable discovery candidates. Complete Milestone A end-to-end verification and user/contributor documentation.
+Define and implement only the Slice 1 REST contract and minimal authenticated UI needed to configure an external SSIS provider instance, validate it, and view executable discovery candidates. The approved refinements add exact trusted-operator/endpoint policies, durable asynchronous discovery admission and one hosted runner, plus generation-safe PostgreSQL inventory paging with targeted native visibility checks. Complete Milestone A end-to-end verification and user/contributor documentation; no SSISDB scan pagination or native execution is implied.
 
 ### Dependencies
 
@@ -732,7 +736,7 @@ Milestone A must not introduce:
 - SSIS execution or cancellation;
 - `Pipeline` registration;
 - `Run` or `RunAttempt` concepts or behavior;
-- scheduling or scheduler/background-mechanism selection;
+- workflow scheduling, external queues or native execution workers (the approved discovery-only hosted runner is described above);
 - ISPAC/DTSX graph parsing or React Flow;
 - deployment or authoring;
 - Data Flow parsing or visualization;

@@ -177,7 +177,7 @@ done
 
 for task_id in A-10 A-11 A-12
 do
-  require_milestone_task_state "$task_id" Planned unchecked
+  require_milestone_task_state "$task_id" Complete checked
 done
 
 for command in \

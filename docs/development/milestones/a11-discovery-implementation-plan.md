@@ -10,10 +10,14 @@
 
 **Spec:** Approved complete-scan/current-inventory refinement in [SSIS Provider Technical Design, section 7](../../architecture/providers/ssis-provider-technical-design.md#7-discovery-design), under the [Milestone A plan](milestone-a-foundation-and-ssis-discovery.md#a-11--read-only-ssis-discovery). The technical design records product semantics; this file specifies the implementation tasks and review gates.
 
+## Closure review context
+
+The task statuses below reflect accepted completion. The detailed RED/GREEN checklists and authorization gates are retained as the historical implementation plan, not outstanding acceptance blockers or new operational instructions. A-11a was committed at `32205b5`, A-11b at `4d15f56`; GitHub #14, #15 and parent #12 are closed. The [live acceptance record](milestone-a-live-acceptance.md) records their current evidence and the subsequent API/UI journey. Normal development PostgreSQL now has all four committed migrations, including inventory and durable hosting; no statement about an earlier unapplied migration authorizes running one during this review.
+
 ## Global constraints
 
-- Parent A-11 remains [issue #12](https://github.com/aaliakbarian/flowplane/issues/12) in Milestone A; [A-11b / #15](https://github.com/aaliakbarian/flowplane/issues/15) is blocked by [A-11a / #14](https://github.com/aaliakbarian/flowplane/issues/14). GitHub is the live tracker.
-- Status of this refined plan: Planned; implementation refactoring is not authorized by the documentation approval.
+- Parent A-11 is [issue #12](https://github.com/aaliakbarian/flowplane/issues/12) in Milestone A; [A-11b / #15](https://github.com/aaliakbarian/flowplane/issues/15) depended on [A-11a / #14](https://github.com/aaliakbarian/flowplane/issues/14). All three are complete and closed. GitHub is the live tracker.
+- Status of this refined plan: Complete; this documentation reconciliation authorizes no further implementation.
 - Work in the existing authoritative main checkout. Preserve every existing modified/untracked implementation, test, configuration and fixture file. No reset, clean, stash, discard, stage or commit during planning.
 - Every invocation covers all currently visible projects. No SSISDB result pagination, total catalog-size ceiling, candidate cap or parameter/environment-reference truncation.
 - Unknown-format projects/packages remain approved observations with explicit candidate ineligibility. Non-entry-point packages remain project contents, not executable candidates.
@@ -69,7 +73,7 @@ These signatures are implementation-plan targets, not an approved generic provid
 
 ## A-11a — Complete read-only SSIS scan
 
-**Status:** Planned. **Depends on:** A-10 evidence and explicit A-11a implementation approval. **Produces:** reviewed streaming observation/sink contract, complete scan and real discovery evidence. **No inventory migration in this child.**
+**Status:** Complete. **Dependencies satisfied:** A-10 evidence and explicit A-11a implementation approval. **Produces:** reviewed streaming observation/sink contract, complete scan and real discovery evidence. **No inventory migration in this child.**
 
 ### A-11a.1: Observation contract, identity and options
 
@@ -104,9 +108,9 @@ These signatures are implementation-plan targets, not an approved generic provid
 
 ## A-11b — Current discovery inventory publication
 
-**Status:** Planned; blocked by A-11a. **Consumes:** accepted ScanAsync/sink/summary contract. **Produces:** durable complete inventory and refresh/failure/access semantics. Explicit implementation and schema approval are required.
+**Status:** Complete. **Dependency satisfied:** accepted A-11a. **Consumes:** accepted ScanAsync/sink/summary contract. **Produces:** durable complete inventory and refresh/failure/access semantics. Implementation and schema approval preceded the accepted verification.
 
-The approved finalized implementation has passed [isolated A-11b acceptance](a11b-current-inventory-acceptance.md) and is at final implementation review; the [migration review](a11b-current-inventory-migration-review.md) records the schema. No normal development database migration, commit or parent completion is implied. Its minimal one-refresh NotObserved identity/provenance policy supersedes the earlier last-known-payload wording below. GitHub remains the live progress tracker.
+The committed implementation passed [isolated A-11b acceptance](a11b-current-inventory-acceptance.md); the [migration review](a11b-current-inventory-migration-review.md) records the schema. Normal development migration followed separate operational approval, and the [live acceptance record](milestone-a-live-acceptance.md) confirms publication through the completed API/UI. Its minimal one-refresh NotObserved identity/provenance policy supersedes the earlier last-known-payload wording below. GitHub remains the live progress tracker.
 
 ### A-11b.1: PostgreSQL staging and schema
 
@@ -153,9 +157,9 @@ git diff --check
 
 For real SSIS tests, use the ignored private configuration and the WSL/non-root SDK-container commands in [SSIS integration testing](../ssis-integration-testing.md), filtering `RealSsisDiscoveryTests` and `RealSsisValidationTests` separately. Never print secrets, connection strings or locators. Ordinary gated skips are not real acceptance evidence. A-11b additionally runs isolated PostgreSQL persistence and the existing A-09/migration contracts; no live SSIS environment is needed for ordinary Foundation CI.
 
-## Review and commit gates
+## Historical review and commit gates
 
-1. **Current gate:** Review this documentation/issue reconciliation and the three-file documentation diff. Preserve all other dirty/untracked work. No implementation or commit is authorized now.
+1. **Original planning gate:** Review the documentation/issue reconciliation and the three-file documentation diff. Preserve all other dirty/untracked work. Implementation and commits required separate authorization.
 2. **A-11a gate:** Explicitly authorize its refactor; execute RED/GREEN in the existing checkout. External fixture deployment/configuration requires separate explicit approval. Review the exact resulting diff and real evidence before accepting the child.
 3. **A-11b gate:** Only after A-11a acceptance, review final storage contract, migration, access-context and recovery semantics, then explicitly authorize implementation. Schema review occurs before migration application.
 4. **Commit gates:** Each reviewed change set needs explicit commit approval. Select only approved paths/hunks; never include unrelated or unreviewed uncommitted work, and never use blanket staging. No automatic commits prescribed by the skill override these gates.
