@@ -109,6 +109,7 @@ See the [Compose development guide](deploy/compose/README.md) for the alternate 
 - [SSIS Provider Technical Design](docs/architecture/providers/ssis-provider-technical-design.md)
 - [MVP implementation plan](docs/development/mvp-implementation-plan.md)
 - [Milestone A execution plan](docs/development/milestones/milestone-a-foundation-and-ssis-discovery.md)
+- [Milestone B technical and implementation plan](docs/development/milestones/milestone-b-first-durable-manual-ssis-execution.md)
 - [ADR index](docs/adr/README.md)
 - [Contributing guide](CONTRIBUTING.md)
 

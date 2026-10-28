@@ -1013,6 +1013,8 @@ The first coding commit must contain only the minimum development foundation nee
 
 This milestone comprises Slices 2–4 and the database/API checkpoints they require. Keep the first package intentionally simple. Persist FlowPlane intent around the remote boundaries, retain its native SSIS execution identifier, observe it through the accepted lifecycle, and recover a known correlated execution after backend restart. Full ambiguous-dispatch recovery, parameters, visualization, and scheduling follow in their dedicated slices.
 
+The [Milestone B technical and implementation plan](milestones/milestone-b-first-durable-manual-ssis-execution.md) records the approved B-01 contracts, SQL-authentication execution-proof gate, strict initial execution profile, conservative ambiguity/capacity policy and B-01–B-11 issue dependencies. It is a planning checkpoint, not authorization to deploy fixtures or execute packages.
+
 **Exit:** A user can register one discovered package, manually create a durable FlowPlane `Run`, initiate and observe one SSIS execution through its `RunAttempt`, see the correlated SSIS execution identifier and eventual result, and recover observation after backend restart without an exactly-once claim.
 
 ## 31. Implementation gates
