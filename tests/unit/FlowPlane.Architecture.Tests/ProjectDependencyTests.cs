@@ -6,6 +6,7 @@ public sealed class ProjectDependencyTests
 {
     public static TheoryData<string, string[]> ApprovedDependencies => new()
     {
+        { "src/agents/FlowPlane.Agent.Protocol/FlowPlane.Agent.Protocol.csproj", [] },
         { "src/backend/FlowPlane.Domain/FlowPlane.Domain.csproj", [] },
         {
             "src/backend/FlowPlane.Application/FlowPlane.Application.csproj",
@@ -79,7 +80,7 @@ public sealed class ProjectDependencyTests
         var repositoryRoot = FindRepositoryRoot();
         var projectsReferencingSqlClient = Directory
             .EnumerateFiles(
-                Path.Combine(repositoryRoot, "src", "backend"),
+                Path.Combine(repositoryRoot, "src"),
                 "*.csproj",
                 SearchOption.AllDirectories)
             .Where(projectPath => ReadPackageReferencesFromAbsolutePath(projectPath)
@@ -88,6 +89,16 @@ public sealed class ProjectDependencyTests
             .ToArray();
 
         Assert.Equal(["FlowPlane.Providers.Ssis"], projectsReferencingSqlClient);
+    }
+
+    [Fact]
+    public void Agent_protocol_is_portable_and_framework_only()
+    {
+        var project = XDocument.Load(Path.Combine(FindRepositoryRoot(), "src/agents/FlowPlane.Agent.Protocol/FlowPlane.Agent.Protocol.csproj"));
+        Assert.Empty(project.Descendants("PackageReference"));
+        Assert.Empty(project.Descendants("FrameworkReference"));
+        Assert.Empty(project.Descendants("ProjectReference"));
+        Assert.DoesNotContain(project.Descendants("TargetFramework"), framework => framework.Value.Contains("windows", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

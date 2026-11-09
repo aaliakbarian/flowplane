@@ -22,5 +22,6 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="../../fixtures/ssis/FlowPlaneBExecutionFixture/Scripts/FixtureBehavior.cs" Link="Fixtures/FixtureBehavior.cs" />
   </ItemGroup>
 </Project>

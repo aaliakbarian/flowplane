@@ -1,5 +1,8 @@
 <Solution>
   <Folder Name="/src/" />
+  <Folder Name="/src/agents/">
+    <Project Path="src/agents/FlowPlane.Agent.Protocol/FlowPlane.Agent.Protocol.csproj" />
+  </Folder>
   <Folder Name="/src/backend/">
     <Project Path="src/backend/FlowPlane.Api/FlowPlane.Api.csproj" />
     <Project Path="src/backend/FlowPlane.Application/FlowPlane.Application.csproj" />
@@ -14,6 +17,7 @@
     <Project Path="tests/integration/FlowPlane.Ssis.Integration.Tests/FlowPlane.Ssis.Integration.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/unit/">
+    <Project Path="tests/unit/FlowPlane.Agent.Tests/FlowPlane.Agent.Tests.csproj" />
     <Project Path="tests/unit/FlowPlane.Architecture.Tests/FlowPlane.Architecture.Tests.csproj" />
     <Project Path="tests/unit/FlowPlane.ProviderConfiguration.Tests/FlowPlane.ProviderConfiguration.Tests.csproj" />
     <Project Path="tests/unit/FlowPlane.Providers.Ssis.Tests/FlowPlane.Providers.Ssis.Tests.csproj" />
