@@ -7,6 +7,9 @@ public sealed class ProjectDependencyTests
     public static TheoryData<string, string[]> ApprovedDependencies => new()
     {
         { "src/agents/FlowPlane.Agent.Protocol/FlowPlane.Agent.Protocol.csproj", [] },
+        { "src/agents/FlowPlane.Agent.Runtime/FlowPlane.Agent.Runtime.csproj", ["FlowPlane.Agent.Protocol"] },
+        { "src/agents/FlowPlane.Agent.Windows/FlowPlane.Agent.Windows.csproj", ["FlowPlane.Agent.Runtime", "FlowPlane.Agent.Protocol"] },
+        { "src/agents/FlowPlane.Agent.Setup/FlowPlane.Agent.Setup.csproj", ["FlowPlane.Agent.Windows"] },
         { "src/backend/FlowPlane.Domain/FlowPlane.Domain.csproj", [] },
         {
             "src/backend/FlowPlane.Application/FlowPlane.Application.csproj",
@@ -99,6 +102,17 @@ public sealed class ProjectDependencyTests
         Assert.Empty(project.Descendants("FrameworkReference"));
         Assert.Empty(project.Descendants("ProjectReference"));
         Assert.DoesNotContain(project.Descendants("TargetFramework"), framework => framework.Value.Contains("windows", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Portable_solution_does_not_execute_Windows_projects_and_runtime_is_framework_only()
+    {
+        var root = FindRepositoryRoot();
+        var solution = XDocument.Load(Path.Combine(root, "FlowPlane.slnx"));
+        Assert.DoesNotContain(solution.Descendants("Project"), project => project.Attribute("Path")!.Value.Contains("Windows", StringComparison.Ordinal));
+        var runtime = XDocument.Load(Path.Combine(root, "src/agents/FlowPlane.Agent.Runtime/FlowPlane.Agent.Runtime.csproj"));
+        Assert.Empty(runtime.Descendants("PackageReference"));
+        Assert.Empty(runtime.Descendants("FrameworkReference"));
     }
 
     [Fact]

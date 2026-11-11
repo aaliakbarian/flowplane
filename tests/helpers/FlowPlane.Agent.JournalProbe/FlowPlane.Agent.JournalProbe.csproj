@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../../src/agents/FlowPlane.Agent.Runtime/FlowPlane.Agent.Runtime.csproj" /></ItemGroup>
+</Project>

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/agents/">
+    <Project Path="src/agents/FlowPlane.Agent.Protocol/FlowPlane.Agent.Protocol.csproj" />
+    <Project Path="src/agents/FlowPlane.Agent.Runtime/FlowPlane.Agent.Runtime.csproj" />
+    <Project Path="src/agents/FlowPlane.Agent.Windows/FlowPlane.Agent.Windows.csproj" />
+    <Project Path="src/agents/FlowPlane.Agent.Setup/FlowPlane.Agent.Setup.csproj" />
+  </Folder>
+  <Folder Name="/tests/windows/">
+    <Project Path="tests/windows/FlowPlane.Agent.Windows.Tests/FlowPlane.Agent.Windows.Tests.csproj" />
+  </Folder>
+</Solution>

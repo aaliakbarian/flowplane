@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <InternalsVisibleTo Include="FlowPlane.Agent.Tests" />
+    <ProjectReference Include="../FlowPlane.Agent.Protocol/FlowPlane.Agent.Protocol.csproj" />
+  </ItemGroup>
+</Project>

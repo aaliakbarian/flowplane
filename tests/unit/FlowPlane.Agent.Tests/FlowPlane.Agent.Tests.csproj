@@ -13,7 +13,9 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../../helpers/FlowPlane.Agent.JournalProbe/FlowPlane.Agent.JournalProbe.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="../../../src/agents/FlowPlane.Agent.Protocol/FlowPlane.Agent.Protocol.csproj" />
+    <ProjectReference Include="../../../src/agents/FlowPlane.Agent.Runtime/FlowPlane.Agent.Runtime.csproj" />
     <ProjectReference Include="../../../src/backend/FlowPlane.Application/FlowPlane.Application.csproj" />
   </ItemGroup>
   <ItemGroup>

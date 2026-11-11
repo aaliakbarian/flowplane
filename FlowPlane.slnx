@@ -2,6 +2,7 @@
   <Folder Name="/src/" />
   <Folder Name="/src/agents/">
     <Project Path="src/agents/FlowPlane.Agent.Protocol/FlowPlane.Agent.Protocol.csproj" />
+    <Project Path="src/agents/FlowPlane.Agent.Runtime/FlowPlane.Agent.Runtime.csproj" />
   </Folder>
   <Folder Name="/src/backend/">
     <Project Path="src/backend/FlowPlane.Api/FlowPlane.Api.csproj" />
@@ -11,6 +12,9 @@
     <Project Path="src/backend/FlowPlane.Providers.Ssis/FlowPlane.Providers.Ssis.csproj" />
   </Folder>
   <Folder Name="/tests/" />
+  <Folder Name="/tests/helpers/">
+    <Project Path="tests/helpers/FlowPlane.Agent.JournalProbe/FlowPlane.Agent.JournalProbe.csproj" />
+  </Folder>
   <Folder Name="/tests/integration/">
     <Project Path="tests/integration/FlowPlane.Api.Tests/FlowPlane.Api.Tests.csproj" />
     <Project Path="tests/integration/FlowPlane.Persistence.Tests/FlowPlane.Persistence.Tests.csproj" />

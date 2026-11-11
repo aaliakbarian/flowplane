@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="FlowPlane.Agent.Windows.Tests" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.13" />
+    <ProjectReference Include="../FlowPlane.Agent.Runtime/FlowPlane.Agent.Runtime.csproj" />
+    <ProjectReference Include="../FlowPlane.Agent.Protocol/FlowPlane.Agent.Protocol.csproj" />
+  </ItemGroup>
+</Project>
