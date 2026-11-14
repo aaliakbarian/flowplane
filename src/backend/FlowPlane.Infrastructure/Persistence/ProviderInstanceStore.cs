@@ -3,6 +3,7 @@ using FlowPlane.Application.Providers.DiscoveryInventory;
 using FlowPlane.Domain.Providers;
 using FlowPlane.Infrastructure.Secrets;
 using FlowPlane.Infrastructure.Persistence.Discovery;
+using FlowPlane.Infrastructure.Persistence.Agents;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -36,6 +37,7 @@ internal sealed class ProviderInstanceStore(
             throw new DiscoveryInventoryException(DiscoveryInventoryError.ProviderUnavailable);
         if (instance.Version != expectedVersion) throw new DbUpdateConcurrencyException("The provider instance was modified concurrently.");
         instance.UpdateConfiguration(displayName, isEnabled, configuration, now);
+        await AgentDatabase.InvalidateProvidersAsync(context, [id], cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return instance;
@@ -81,8 +83,10 @@ internal sealed class ProviderInstanceStore(
         if (retirement?.Lifecycle == DiscoveryStateLifecycle.Deleting)
             throw new DiscoveryInventoryException(DiscoveryInventoryError.ProviderUnavailable);
         if (instance.Version != expectedVersion) throw new DbUpdateConcurrencyException("The provider instance was modified concurrently.");
+        await DiscoveryDatabase.LockSecretAsync(context, instance, cancellationToken);
         instance.MarkCredentialChanged(expectedVersion, now);
-        await secretStore.ReplaceAsync(instance.SecretReference, secret, cancellationToken);
+        await AgentDatabase.InvalidateProvidersAsync(context, [providerInstanceId], cancellationToken);
+        await secretStore.ReplaceLockedAsync(instance.SecretReference, secret, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
@@ -99,6 +103,7 @@ internal sealed class ProviderInstanceStore(
             var retiring = await DiscoveryDatabase.LockProviderAsync(context, providerInstanceId, cancellationToken);
             if (retiring.Version != expectedVersion)
                 throw new DbUpdateConcurrencyException("The provider instance was modified concurrently.");
+            await AgentDatabase.GuardProviderDeletionAsync(context, providerInstanceId, cancellationToken);
             await DiscoveryDatabase.LockSecretAsync(context, retiring, cancellationToken);
             await ProviderDiscoveryInventoryStore.RetireAsync(context, providerInstanceId, cancellationToken);
             await retirement.CommitAsync(cancellationToken);
@@ -109,6 +114,7 @@ internal sealed class ProviderInstanceStore(
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         await DiscoveryDatabase.SetTimeoutsAsync(context, 30, cancellationToken);
         var instance = await DiscoveryDatabase.LockProviderAsync(context, providerInstanceId, cancellationToken);
+        await AgentDatabase.GuardProviderDeletionAsync(context, providerInstanceId, cancellationToken);
         await DiscoveryDatabase.LockSecretAsync(context, instance, cancellationToken);
         if (instance.Version != expectedVersion)
             throw new DbUpdateConcurrencyException("The provider instance was modified concurrently.");

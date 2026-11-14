@@ -4,6 +4,8 @@ using System.Text;
 using FlowPlane.Application.Secrets;
 using FlowPlane.Domain.Providers;
 using FlowPlane.Infrastructure.Persistence;
+using FlowPlane.Infrastructure.Persistence.Discovery;
+using FlowPlane.Infrastructure.Persistence.Agents;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -29,6 +31,35 @@ internal sealed class ManagedSecretStore(
         SecretReference reference,
         ReadOnlyMemory<char> secret,
         CancellationToken cancellationToken = default)
+    {
+        // Direct replacement must serialize through the actual owners, not just the ciphertext row.
+        if (context.Database.CurrentTransaction is not null)
+            throw new SecretResolutionException(SecretErrorCode.ConcurrencyConflict, "The secret replacement context is unavailable.");
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        await DiscoveryDatabase.SetTimeoutsAsync(context, 30, cancellationToken);
+        var ownerIds = await context.ProviderInstances.AsNoTracking().Where(p => p.SecretReference == reference)
+            .OrderBy(p => p.Id).Select(p => p.Id).Take(33).ToListAsync(cancellationToken);
+        if (ownerIds.Count > 32) throw new SecretResolutionException(SecretErrorCode.ConcurrencyConflict, "The secret ownership context is unavailable.");
+        foreach (var ownerId in ownerIds)
+        {
+            var owner = await DiscoveryDatabase.LockProviderAsync(context, ownerId, cancellationToken);
+            if (owner.SecretReference != reference) throw new SecretResolutionException(SecretErrorCode.ConcurrencyConflict, "The secret ownership context changed.");
+            owner.MarkCredentialChanged(owner.Version, DateTimeOffset.UtcNow);
+        }
+        var secretId = GetManagedSecretId(reference);
+        _ = await context.SecretRecords.FromSqlInterpolated($"SELECT * FROM \"FlowPlaneSecrets\" WHERE \"Id\" = {secretId} FOR UPDATE")
+            .SingleOrDefaultAsync(cancellationToken) ?? throw NotFound();
+        var currentOwnerIds = await context.ProviderInstances.AsNoTracking().Where(p => p.SecretReference == reference)
+            .OrderBy(p => p.Id).Select(p => p.Id).Take(33).ToListAsync(cancellationToken);
+        if (!ownerIds.SequenceEqual(currentOwnerIds))
+            throw new SecretResolutionException(SecretErrorCode.ConcurrencyConflict, "The secret ownership context changed.");
+        await AgentDatabase.InvalidateProvidersAsync(context, ownerIds, cancellationToken);
+        await ReplaceLockedAsync(reference, secret, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    // Only ProviderInstanceStore/direct ReplaceAsync call this after provider -> secret -> agent locking.
+    internal async ValueTask ReplaceLockedAsync(SecretReference reference, ReadOnlyMemory<char> secret, CancellationToken cancellationToken)
     {
         ValidateSecret(secret);
         var id = GetManagedSecretId(reference);

@@ -20,6 +20,12 @@ public sealed class DiscoveryHostingMigrationPostgreSqlTests(ITestOutputHelper o
     private const string GateB = "20261026084710_DurableDiscoveryHosting";
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
+    private static async Task MigrateGateB(ServiceProvider services)
+    {
+        await using var scope = services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<FlowPlaneDbContext>().GetService<IMigrator>().MigrateAsync(GateB, Token);
+    }
+
     [Fact]
     public async Task Rollback_serializes_its_guard_with_concurrent_admission_before_dropping_executor_metadata()
     {
@@ -31,7 +37,7 @@ public sealed class DiscoveryHostingMigrationPostgreSqlTests(ITestOutputHelper o
             registrations.AddSingleton(new DiscoveryHostingOptions { Enabled = true });
             registrations.ConfigureDbContext<FlowPlaneDbContext>(options => options.AddInterceptors(boundary));
         });
-        await database.MigrateAsync(services, Token);
+        await MigrateGateB(services);
         var id = await ProviderDiscoveryInventoryTests.CreateInstanceAsync(services, Token);
         await using var rollbackScope = services.CreateAsyncScope();
         var db = rollbackScope.ServiceProvider.GetRequiredService<FlowPlaneDbContext>();
@@ -145,7 +151,7 @@ public sealed class DiscoveryHostingMigrationPostgreSqlTests(ITestOutputHelper o
             Assert.Null(row.PublicationAttemptedAtUtc); Assert.False(row.PublicationUncertain);
         });
         await migrator.MigrateAsync(GateB, Token);
-        Assert.Empty(await db.Database.GetPendingMigrationsAsync(Token));
+        Assert.Single(await db.Database.GetPendingMigrationsAsync(Token)); // F3 remains beyond this Gate B regression.
         Assert.Equal(4, (await db.Database.GetAppliedMigrationsAsync(Token)).Count());
         Assert.Equal(7, await db.Database.SqlQueryRaw<long>("SELECT count(*) AS \"Value\" FROM pg_tables WHERE schemaname='public'").SingleAsync(Token));
         var columns = await db.Database.SqlQueryRaw<string>("""
@@ -186,7 +192,7 @@ public sealed class DiscoveryHostingMigrationPostgreSqlTests(ITestOutputHelper o
         await using var database = await PostgreSqlTestDatabase.CreateAsync(Token);
         Assert.SkipWhen(database is null, "Configure isolated PostgreSQL 18.");
         await using var services = database!.CreateServices(null, registrations => registrations.AddSingleton(new DiscoveryHostingOptions { Enabled = true }));
-        await database.MigrateAsync(services, Token);
+        await MigrateGateB(services);
         var id = await ProviderDiscoveryInventoryTests.CreateInstanceAsync(services, Token);
         await using var scope = services.CreateAsyncScope();
         var store = scope.ServiceProvider.GetRequiredService<IHostedDiscoveryStore>();
@@ -220,7 +226,7 @@ public sealed class DiscoveryHostingMigrationPostgreSqlTests(ITestOutputHelper o
         await using var database = await PostgreSqlTestDatabase.CreateAsync(Token);
         Assert.SkipWhen(database is null, "Configure isolated PostgreSQL 18.");
         await using var services = database!.CreateServices(null, registrations => registrations.AddSingleton(new DiscoveryHostingOptions { Enabled = true }));
-        await database.MigrateAsync(services, Token);
+        await MigrateGateB(services);
         var first = await ProviderDiscoveryInventoryTests.CreateInstanceAsync(services, Token);
         var second = await ProviderDiscoveryInventoryTests.CreateInstanceAsync(services, Token);
         await using var scope = services.CreateAsyncScope();

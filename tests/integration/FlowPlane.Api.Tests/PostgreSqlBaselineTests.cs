@@ -43,7 +43,7 @@ public sealed class PostgreSqlBaselineTests
             command.CommandText = $"ALTER DATABASE {quoted} ALLOW_CONNECTIONS true";
             await command.ExecuteNonQueryAsync(token);
             await Health("/health/ready", HttpStatusCode.OK, "Healthy");
-            Assert.Equal(4, (await context.Database.GetAppliedMigrationsAsync(token)).Count());
+            Assert.Equal(5, (await context.Database.GetAppliedMigrationsAsync(token)).Count());
 
             async Task Health(string path, HttpStatusCode status, string body)
             {
@@ -116,14 +116,14 @@ public sealed class PostgreSqlBaselineTests
                 """;
 
             var tableCount = (long)(await countTables.ExecuteScalarAsync(cancellationToken))!;
-            Assert.Equal(7, tableCount);
+            Assert.Equal(12, tableCount);
 
             await using var countMigrations = databaseConnection.CreateCommand();
             countMigrations.CommandText = "SELECT count(*) FROM \"__EFMigrationsHistory\";";
 
             var migrationCount =
                 (long)(await countMigrations.ExecuteScalarAsync(cancellationToken))!;
-            Assert.Equal(4, migrationCount);
+            Assert.Equal(5, migrationCount);
         }
         finally
         {
@@ -133,7 +133,12 @@ public sealed class PostgreSqlBaselineTests
         }
     }
 
-    private static void RequireGateB() => Assert.SkipUnless(
+    private static void RequireGateB()
+    {
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("FLOWPLANE_TEST_AGENT_MIGRATION_APPROVED") == "true",
+            "F3 requires separate isolated migration approval; no database is created or migrated.");
+        Assert.SkipUnless(
         Environment.GetEnvironmentVariable("FLOWPLANE_TEST_DISCOVERY_HOSTING_MIGRATION_APPROVED") == "true",
         "Explicit Gate B migration application approval is required.");
+    }
 }

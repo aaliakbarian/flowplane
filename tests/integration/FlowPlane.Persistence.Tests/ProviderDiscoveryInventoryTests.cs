@@ -18,7 +18,7 @@ public sealed class ProviderDiscoveryInventoryTests
         "Pending explicit A-11b migration review/application approval. No database is created or migrated before this gate.");
 
     [Fact]
-    public async Task Direct_owned_secret_replacement_fences_publication_even_when_provider_version_does_not_change()
+    public async Task Direct_owned_secret_replacement_fences_publication_and_advances_the_actual_owner_version()
     {
         RequireMigrationApproval();
         var token = TestContext.Current.CancellationToken;
@@ -40,7 +40,7 @@ public sealed class ProviderDiscoveryInventoryTests
             await scope.ServiceProvider.GetRequiredService<IManagedSecretStore>().ReplaceAsync(instance.SecretReference, "second-unique-canary".AsMemory(), token);
             var failure = await Assert.ThrowsAsync<DiscoveryInventoryException>(() => refresh.PublishAsync(Summary(0), token));
             Assert.Equal(DiscoveryInventoryError.ContextChanged, failure.Code);
-            Assert.Equal(1, instance.Version);
+            Assert.Equal(2, instance.Version);
         }
         finally { Directory.Delete(directory, recursive: true); }
     }

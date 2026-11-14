@@ -65,6 +65,541 @@ namespace FlowPlane.Infrastructure.Persistence.Migrations
                     b.ToTable("ProviderInstances", (string)null);
                 });
 
+            modelBuilder.Entity("FlowPlane.Infrastructure.Persistence.Agents.AgentAssignmentRecord", b =>
+                {
+                    b.Property<Guid>("ProviderInstanceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AgentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("ProviderCredentialVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ProviderVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("ProviderInstanceId");
+
+                    b.HasIndex("AgentId", "State");
+
+                    b.ToTable("AgentProviderAssignments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AgentProviderAssignments_AgentId", "\"AgentId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentProviderAssignments_ProviderInstanceId", "\"ProviderInstanceId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentProviderAssignments_State", "\"State\" IN ('Pending','Active','Suspended','Revoked')");
+
+                            t.HasCheckConstraint("CK_AgentProviderAssignments_Versions", "\"Version\" > 0 AND \"ProviderVersion\" > 0 AND (\"ProviderCredentialVersion\" IS NULL OR \"ProviderCredentialVersion\" > 0) AND \"UpdatedAtUtc\" >= \"CreatedAtUtc\"");
+                        });
+                });
+
+            modelBuilder.Entity("FlowPlane.Infrastructure.Persistence.Agents.AgentCredentialRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ActivatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("AgentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte[]>("Der")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<byte[]>("DerSha256")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<DateTimeOffset>("NotAfterUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("NotBeforeUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ProvedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("RetiringUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte[]>("SpkiSha256")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AgentCredential_Active")
+                        .HasFilter("\"State\" = 'Active'");
+
+                    b.HasIndex("DerSha256")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AgentCredential_Der");
+
+                    b.HasIndex("AgentId", "State");
+
+                    b.ToTable("AgentCredentials", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AgentCredentials_AgentId", "\"AgentId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentCredentials_Der", "octet_length(\"Der\") BETWEEN 1 AND 16384");
+
+                            t.HasCheckConstraint("CK_AgentCredentials_Digests", "octet_length(\"DerSha256\") = 32 AND octet_length(\"SpkiSha256\") = 32");
+
+                            t.HasCheckConstraint("CK_AgentCredentials_Id", "\"Id\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentCredentials_Lifecycle", "(\"State\" NOT IN ('Active','RetiringReceiptsOnly','Retired') OR (\"ProvedAtUtc\" IS NOT NULL AND \"ActivatedAtUtc\" IS NOT NULL AND \"ActivatedAtUtc\" >= \"ProvedAtUtc\")) AND (\"State\" <> 'RetiringReceiptsOnly' OR (\"RetiringUntilUtc\" IS NOT NULL AND \"RetiringUntilUtc\" > \"ActivatedAtUtc\")) AND ((\"State\" = 'Revoked') = (\"RevokedAtUtc\" IS NOT NULL))");
+
+                            t.HasCheckConstraint("CK_AgentCredentials_State", "\"State\" IN ('PendingProof','Active','RetiringReceiptsOnly','Retired','Revoked') AND \"Version\" > 0");
+
+                            t.HasCheckConstraint("CK_AgentCredentials_Validity", "\"NotAfterUtc\" > \"NotBeforeUtc\"");
+                        });
+                });
+
+            modelBuilder.Entity("FlowPlane.Infrastructure.Persistence.Agents.AgentGrantRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("ActivatedAuthorizationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("ActorDigest")
+                        .HasColumnType("bytea");
+
+                    b.Property<Guid>("AgentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("ClaimDigest")
+                        .HasColumnType("bytea");
+
+                    b.Property<Guid?>("ClaimId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("ClaimReceiptVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("ClaimedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ClaimedCredentialId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClientRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ExpectedActiveCredentialId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ExpectedAgentVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ExpectedAssignmentVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ExpectedAuthorizationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("InitiatingCredentialId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Issuer")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .UseCollation("C");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<byte[]>("Nonce")
+                        .HasColumnType("bytea");
+
+                    b.Property<long?>("ProofReceiptVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("ProofRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ProvedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("ProviderCredentialVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("ProviderInstanceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ProviderVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("RedeemedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("RedemptionReceiptVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("RequestDigest")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Subject")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .UseCollation("C");
+
+                    b.Property<byte[]>("TokenHash")
+                        .HasColumnType("bytea");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AgentGrant_LiveAgent")
+                        .HasFilter("\"State\" IN ('Issued','Claimed','Proven')");
+
+                    b.HasIndex("ClaimId")
+                        .IsUnique()
+                        .HasFilter("\"ClaimId\" IS NOT NULL");
+
+                    b.HasIndex("ProofRequestId")
+                        .IsUnique()
+                        .HasFilter("\"ProofRequestId\" IS NOT NULL");
+
+                    b.HasIndex("ProviderInstanceId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AgentGrant_LiveProvider")
+                        .HasFilter("\"Kind\" = 'Enrollment' AND \"State\" IN ('Issued','Claimed','Proven')");
+
+                    b.HasIndex("ActorDigest", "ClientRequestId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AgentGrant_ActorRequest")
+                        .HasFilter("\"Kind\" = 'Enrollment'");
+
+                    b.HasIndex("AgentId", "ClaimedCredentialId");
+
+                    b.HasIndex("AgentId", "ExpectedActiveCredentialId");
+
+                    b.HasIndex("AgentId", "InitiatingCredentialId");
+
+                    b.HasIndex("InitiatingCredentialId", "ClientRequestId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AgentGrant_RotationRequest")
+                        .HasFilter("\"Kind\" = 'Rotation'");
+
+                    b.HasIndex("ProviderInstanceId", "AgentId");
+
+                    b.HasIndex("State", "ExpiresAtUtc", "Id");
+
+                    b.ToTable("AgentEnrollmentGrants", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_AgentId", "\"AgentId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_Claim", "num_nonnulls(\"ClaimId\",\"ClaimDigest\",\"ClaimedCredentialId\",\"Nonce\",\"ClaimReceiptVersion\",\"ClaimedAtUtc\") IN (0,6) AND (\"ClaimId\" IS NULL OR (octet_length(\"ClaimDigest\") = 32 AND octet_length(\"Nonce\") = 32 AND \"ClaimReceiptVersion\" > 0 AND \"ClaimedAtUtc\" >= \"CreatedAtUtc\" AND \"ClaimedAtUtc\" < \"ExpiresAtUtc\")) AND (\"State\" NOT IN ('Claimed','Proven','Redeemed') OR \"ClaimId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_ClaimId", "\"ClaimId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_ClaimedCredentialId", "\"ClaimedCredentialId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_ClientRequestId", "\"ClientRequestId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_Digests", "octet_length(\"RequestDigest\") = 32 AND (\"TokenHash\" IS NULL OR octet_length(\"TokenHash\") = 32)");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_ExpectedActiveCredentialId", "\"ExpectedActiveCredentialId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_Id", "\"Id\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_InitiatingCredentialId", "\"InitiatingCredentialId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_Kind", "(\"Kind\" = 'Enrollment' AND \"Issuer\" IS NOT NULL AND length(\"Issuer\") > 0 AND \"Subject\" IS NOT NULL AND length(\"Subject\") > 0 AND \"ActorDigest\" IS NOT NULL AND octet_length(\"ActorDigest\") = 32 AND \"InitiatingCredentialId\" IS NULL AND \"ExpectedActiveCredentialId\" IS NULL AND (\"State\" <> 'Issued' OR \"TokenHash\" IS NOT NULL)) OR (\"Kind\" = 'Rotation' AND \"Issuer\" IS NULL AND \"Subject\" IS NULL AND \"ActorDigest\" IS NULL AND \"TokenHash\" IS NULL AND \"InitiatingCredentialId\" IS NOT NULL AND \"ExpectedActiveCredentialId\" IS NOT NULL AND \"InitiatingCredentialId\" = \"ExpectedActiveCredentialId\")");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_Lifetime", "\"ExpiresAtUtc\" > \"CreatedAtUtc\" AND \"ExpiresAtUtc\" <= \"CreatedAtUtc\" + interval '10 minutes'");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_Proof", "num_nonnulls(\"ProofRequestId\",\"ProofReceiptVersion\",\"ProvedAtUtc\") IN (0,3) AND (\"ProofRequestId\" IS NULL OR (\"ClaimId\" IS NOT NULL AND \"ProofReceiptVersion\" > \"ClaimReceiptVersion\" AND \"ProvedAtUtc\" >= \"ClaimedAtUtc\" AND \"ProvedAtUtc\" < \"ExpiresAtUtc\")) AND (\"State\" NOT IN ('Proven','Redeemed') OR \"ProofRequestId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_ProofRequestId", "\"ProofRequestId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_ProviderInstanceId", "\"ProviderInstanceId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_Redemption", "num_nonnulls(\"RedemptionReceiptVersion\",\"ActivatedAuthorizationVersion\",\"RedeemedAtUtc\") IN (0,3) AND ((\"State\" = 'Redeemed') = (\"RedeemedAtUtc\" IS NOT NULL)) AND (\"RedeemedAtUtc\" IS NULL OR (\"ProofRequestId\" IS NOT NULL AND \"RedemptionReceiptVersion\" > \"ProofReceiptVersion\" AND \"ActivatedAuthorizationVersion\" > \"ExpectedAuthorizationVersion\" AND \"RedeemedAtUtc\" >= \"ProvedAtUtc\" AND \"RedeemedAtUtc\" < \"ExpiresAtUtc\"))");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_State", "\"State\" IN ('Issued','Claimed','Proven','Redeemed','Expired','Cancelled') AND \"Kind\" IN ('Enrollment','Rotation')");
+
+                            t.HasCheckConstraint("CK_AgentEnrollmentGrants_Versions", "\"Version\" > 0 AND \"ExpectedAgentVersion\" > 0 AND \"ExpectedAuthorizationVersion\" > 0 AND \"ExpectedAssignmentVersion\" > 0 AND \"ProviderVersion\" > 0 AND (\"ProviderCredentialVersion\" IS NULL OR \"ProviderCredentialVersion\" > 0)");
+                        });
+                });
+
+            modelBuilder.Entity("FlowPlane.Infrastructure.Persistence.Agents.AgentRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("AuthorizationVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("ConnectAcceptedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("ConnectAuthorizationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("ConnectDigest")
+                        .HasColumnType("bytea");
+
+                    b.Property<long?>("ConnectFence")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("ConnectLeaseExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ConnectRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CurrentBootId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("LastContactAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastHeartbeatAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("LeaseAuthorizationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("LeaseExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("NextPollSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PackageVersion")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("PollAcknowledgedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("PollAuthorizationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("PollDigest")
+                        .HasColumnType("bytea");
+
+                    b.Property<long?>("PollFence")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("PollLeaseExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PollRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("PollSequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("ProtocolVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Readiness")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<bool>("RecoveryRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RevokedByIssuer")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .UseCollation("C");
+
+                    b.Property<string>("RevokedBySubject")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .UseCollation("C");
+
+                    b.Property<long>("SessionFence")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Agents", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Agents_ConnectRequestId", "\"ConnectRequestId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_Agents_CurrentBootId", "\"CurrentBootId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_Agents_Display", "length(\"DisplayName\") BETWEEN 1 AND 200");
+
+                            t.HasCheckConstraint("CK_Agents_Id", "\"Id\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_Agents_Lifetime", "\"UpdatedAtUtc\" >= \"CreatedAtUtc\"");
+
+                            t.HasCheckConstraint("CK_Agents_Package", "num_nonnulls(\"ProtocolVersion\",\"PackageVersion\") IN (0,2) AND (\"ProtocolVersion\" IS NULL OR (\"ProtocolVersion\" = 1 AND length(\"PackageVersion\") BETWEEN 1 AND 64))");
+
+                            t.HasCheckConstraint("CK_Agents_Poll", "num_nonnulls(\"PollRequestId\",\"PollDigest\",\"PollAcknowledgedAtUtc\",\"PollLeaseExpiresAtUtc\",\"PollFence\",\"PollAuthorizationVersion\",\"NextPollSeconds\") IN (0,7) AND ((\"PollSequence\" = 0 AND \"PollRequestId\" IS NULL) OR (\"PollSequence\" > 0 AND \"PollRequestId\" IS NOT NULL AND \"SessionId\" IS NOT NULL AND octet_length(\"PollDigest\") = 32 AND \"PollFence\" = \"ConnectFence\" AND \"PollAuthorizationVersion\" = \"ConnectAuthorizationVersion\" AND \"NextPollSeconds\" = 5 AND \"PollLeaseExpiresAtUtc\" > \"PollAcknowledgedAtUtc\"))");
+
+                            t.HasCheckConstraint("CK_Agents_PollRequestId", "\"PollRequestId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_Agents_Revocation", "num_nonnulls(\"RevokedAtUtc\",\"RevokedByIssuer\",\"RevokedBySubject\") IN (0,3) AND ((\"State\" = 'Revoked') = (\"RevokedAtUtc\" IS NOT NULL))");
+
+                            t.HasCheckConstraint("CK_Agents_Session", "num_nonnulls(\"CurrentBootId\",\"ConnectRequestId\",\"SessionId\",\"ConnectDigest\",\"ConnectAcceptedAtUtc\",\"ConnectLeaseExpiresAtUtc\",\"ConnectAuthorizationVersion\",\"ConnectFence\",\"LeaseAuthorizationVersion\",\"LeaseExpiresAtUtc\") IN (0,10) AND (\"SessionId\" IS NULL OR (octet_length(\"ConnectDigest\") = 32 AND \"ConnectFence\" > 0 AND \"ConnectFence\" <= \"SessionFence\" AND \"ConnectAuthorizationVersion\" > 0 AND \"LeaseAuthorizationVersion\" = \"ConnectAuthorizationVersion\" AND \"ConnectLeaseExpiresAtUtc\" > \"ConnectAcceptedAtUtc\" AND \"LeaseExpiresAtUtc\" >= \"ConnectLeaseExpiresAtUtc\" AND \"ProtocolVersion\" IS NOT NULL))");
+
+                            t.HasCheckConstraint("CK_Agents_SessionId", "\"SessionId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_Agents_States", "\"State\" IN ('Pending','Active','Quarantined','Revoked') AND \"Readiness\" IN ('Unknown','ReadyForControlPlane','Unavailable','ActionRequired')");
+
+                            t.HasCheckConstraint("CK_Agents_Versions", "\"Version\" > 0 AND \"AuthorizationVersion\" > 0 AND \"SessionFence\" > 0 AND \"PollSequence\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("FlowPlane.Infrastructure.Persistence.Agents.AgentSecurityEventRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AgentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("AuthorizationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("CredentialId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Fence")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("GrantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Issuer")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .UseCollation("C");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<long>("PreviousAuthorizationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("PreviousFence")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("RecordedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Subject")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .UseCollation("C");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentId", "CredentialId");
+
+                    b.HasIndex("AgentId", "RecordedAtUtc", "Id");
+
+                    b.ToTable("AgentSecurityEvents", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AgentSecurityEvents_AgentId", "\"AgentId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentSecurityEvents_CredentialId", "\"CredentialId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentSecurityEvents_Facts", "\"Kind\" IN ('GrantIssued','ClaimBound','PossessionProved','Activated','RotationIssued','Rotated','Revoked','ProviderChanged','SessionAcquired','ConflictingIncarnation','RecoveryRequired') AND \"AuthorizationVersion\" > 0 AND \"Fence\" > 0 AND \"PreviousAuthorizationVersion\" > 0 AND \"PreviousFence\" > 0 AND \"PreviousAuthorizationVersion\" <= \"AuthorizationVersion\" AND \"PreviousFence\" <= \"Fence\" AND num_nonnulls(\"Issuer\",\"Subject\") IN (0,2)");
+
+                            t.HasCheckConstraint("CK_AgentSecurityEvents_GrantId", "\"GrantId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_AgentSecurityEvents_Id", "\"Id\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+                        });
+                });
+
             modelBuilder.Entity("FlowPlane.Infrastructure.Persistence.Discovery.DiscoveryGeneration", b =>
                 {
                     b.Property<Guid>("RefreshId")
@@ -398,6 +933,79 @@ namespace FlowPlane.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("DataProtectionKeys", (string)null);
+                });
+
+            modelBuilder.Entity("FlowPlane.Infrastructure.Persistence.Agents.AgentAssignmentRecord", b =>
+                {
+                    b.HasOne("FlowPlane.Infrastructure.Persistence.Agents.AgentRecord", null)
+                        .WithMany()
+                        .HasForeignKey("AgentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FlowPlane.Domain.Providers.ProviderInstance", null)
+                        .WithMany()
+                        .HasForeignKey("ProviderInstanceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FlowPlane.Infrastructure.Persistence.Agents.AgentCredentialRecord", b =>
+                {
+                    b.HasOne("FlowPlane.Infrastructure.Persistence.Agents.AgentRecord", null)
+                        .WithMany()
+                        .HasForeignKey("AgentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FlowPlane.Infrastructure.Persistence.Agents.AgentGrantRecord", b =>
+                {
+                    b.HasOne("FlowPlane.Infrastructure.Persistence.Agents.AgentRecord", null)
+                        .WithMany()
+                        .HasForeignKey("AgentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FlowPlane.Infrastructure.Persistence.Agents.AgentCredentialRecord", null)
+                        .WithMany()
+                        .HasForeignKey("AgentId", "ClaimedCredentialId")
+                        .HasPrincipalKey("AgentId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("FlowPlane.Infrastructure.Persistence.Agents.AgentCredentialRecord", null)
+                        .WithMany()
+                        .HasForeignKey("AgentId", "ExpectedActiveCredentialId")
+                        .HasPrincipalKey("AgentId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("FlowPlane.Infrastructure.Persistence.Agents.AgentCredentialRecord", null)
+                        .WithMany()
+                        .HasForeignKey("AgentId", "InitiatingCredentialId")
+                        .HasPrincipalKey("AgentId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("FlowPlane.Infrastructure.Persistence.Agents.AgentAssignmentRecord", null)
+                        .WithMany()
+                        .HasForeignKey("ProviderInstanceId", "AgentId")
+                        .HasPrincipalKey("ProviderInstanceId", "AgentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FlowPlane.Infrastructure.Persistence.Agents.AgentSecurityEventRecord", b =>
+                {
+                    b.HasOne("FlowPlane.Infrastructure.Persistence.Agents.AgentRecord", null)
+                        .WithMany()
+                        .HasForeignKey("AgentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FlowPlane.Infrastructure.Persistence.Agents.AgentCredentialRecord", null)
+                        .WithMany()
+                        .HasForeignKey("AgentId", "CredentialId")
+                        .HasPrincipalKey("AgentId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("FlowPlane.Infrastructure.Persistence.Discovery.DiscoveryGeneration", b =>

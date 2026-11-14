@@ -51,7 +51,7 @@ public sealed class DiscoveryInventoryMigrationTests(ITestOutputHelper output)
         var expected = await ef.Database.SqlQueryRaw<string>(catalog).ToListAsync(token);
         var actual = await sql.Database.SqlQueryRaw<string>(catalog).ToListAsync(token);
         Assert.Equal(expected, actual);
-        Assert.Equal(4, (await sql.Database.GetAppliedMigrationsAsync(token)).Count());
+        Assert.Equal(5, (await sql.Database.GetAppliedMigrationsAsync(token)).Count());
         foreach (var line in actual) output.WriteLine(line); // Schema only: never rows or connection configuration.
     }
 
@@ -79,9 +79,9 @@ public sealed class DiscoveryInventoryMigrationTests(ITestOutputHelper output)
             var ciphertext = (await db.SecretRecords.AsNoTracking().SingleAsync(token)).Ciphertext;
             await migrator.MigrateAsync(cancellationToken: token);
             await migrator.MigrateAsync(cancellationToken: token);
-            Assert.Equal(4, (await db.Database.GetAppliedMigrationsAsync(token)).Count());
+            Assert.Equal(5, (await db.Database.GetAppliedMigrationsAsync(token)).Count());
             var tables = await db.Database.SqlQueryRaw<string>("SELECT table_name AS \"Value\" FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name").ToListAsync(token);
-            Assert.Equal(new[] { "DataProtectionKeys", "FlowPlaneSecrets", "ProviderDiscoveryGenerations", "ProviderDiscoveryObservations", "ProviderDiscoveryStates", "ProviderInstances", "__EFMigrationsHistory" }, tables);
+            Assert.Equal(new[] { "AgentCredentials", "AgentEnrollmentGrants", "AgentProviderAssignments", "AgentSecurityEvents", "Agents", "DataProtectionKeys", "FlowPlaneSecrets", "ProviderDiscoveryGenerations", "ProviderDiscoveryObservations", "ProviderDiscoveryStates", "ProviderInstances", "__EFMigrationsHistory" }, tables);
             Assert.Equal(ciphertext, (await db.SecretRecords.AsNoTracking().SingleAsync(token)).Ciphertext);
             Assert.Equal(instance.SecretReference, (await db.ProviderInstances.AsNoTracking().SingleAsync(token)).SecretReference);
             Assert.True(await scope.ServiceProvider.GetRequiredService<ISecretResolver>().UseAsync(instance.SecretReference,
@@ -92,7 +92,7 @@ public sealed class DiscoveryInventoryMigrationTests(ITestOutputHelper output)
             Assert.Equal(ciphertext, (await db.SecretRecords.AsNoTracking().SingleAsync(token)).Ciphertext);
             Assert.Equal(instance.Id, (await db.ProviderInstances.AsNoTracking().SingleAsync(token)).Id);
             await migrator.MigrateAsync(cancellationToken: token);
-            Assert.Equal(4, (await db.Database.GetAppliedMigrationsAsync(token)).Count());
+            Assert.Equal(5, (await db.Database.GetAppliedMigrationsAsync(token)).Count());
         }
         finally { Directory.Delete(directory, true); }
     }

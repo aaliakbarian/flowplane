@@ -1,5 +1,6 @@
 using FlowPlane.Domain.Providers;
 using FlowPlane.Infrastructure.Persistence.Discovery;
+using FlowPlane.Infrastructure.Persistence.Agents;
 
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -19,11 +20,17 @@ public sealed class FlowPlaneDbContext(DbContextOptions<FlowPlaneDbContext> opti
     internal DbSet<DiscoveryState> DiscoveryStates => Set<DiscoveryState>();
     internal DbSet<DiscoveryGeneration> DiscoveryGenerations => Set<DiscoveryGeneration>();
     internal DbSet<DiscoveryObservationRecord> DiscoveryObservations => Set<DiscoveryObservationRecord>();
+    internal DbSet<AgentRecord> Agents => Set<AgentRecord>();
+    internal DbSet<AgentCredentialRecord> AgentCredentials => Set<AgentCredentialRecord>();
+    internal DbSet<AgentAssignmentRecord> AgentAssignments => Set<AgentAssignmentRecord>();
+    internal DbSet<AgentGrantRecord> AgentGrants => Set<AgentGrantRecord>();
+    internal DbSet<AgentSecurityEventRecord> AgentSecurityEvents => Set<AgentSecurityEventRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
         DiscoveryModelConfiguration.Configure(modelBuilder);
+        AgentModelConfiguration.Configure(modelBuilder);
 
         modelBuilder.Entity<DataProtectionKey>(builder =>
         {

@@ -105,6 +105,8 @@ jobs:
         with:
           global-json-file: global.json
       - name: Verify PostgreSQL baseline
+        env:
+          FLOWPLANE_TEST_AGENT_MIGRATION_APPROVED: "true"
         run: sh tests/container/a05-postgresql-baseline.sh
 
   documentation:

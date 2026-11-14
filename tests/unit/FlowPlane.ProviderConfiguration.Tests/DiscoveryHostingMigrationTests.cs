@@ -16,7 +16,7 @@ public sealed class DiscoveryHostingMigrationTests
             .UseNpgsql("Host=127.0.0.1;Port=1;Database=design_only;Username=design_only").Options);
         Assert.False(db.Database.HasPendingModelChanges());
         var assembly = db.GetService<IMigrationsAssembly>();
-        Assert.Equal(4, assembly.Migrations.Count);
+        Assert.Equal(5, assembly.Migrations.Count);
         var migration = assembly.CreateMigration(assembly.Migrations.Single(pair => pair.Key.EndsWith("_DurableDiscoveryHosting", StringComparison.Ordinal)).Value,
             db.Database.ProviderName!);
         Assert.Empty(migration.UpOperations.OfType<CreateTableOperation>());

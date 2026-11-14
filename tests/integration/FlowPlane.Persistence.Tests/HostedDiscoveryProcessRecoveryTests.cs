@@ -21,7 +21,7 @@ public sealed class HostedDiscoveryProcessRecoveryTests
         if (Environment.GetEnvironmentVariable("FLOWPLANE_TEST_HOSTED_CRASH_PHASE") is { } childPhase)
         {
             var connection = Environment.GetEnvironmentVariable("FLOWPLANE_TEST_POSTGRES_CONNECTION_STRING")!;
-            Assert.StartsWith("flowplane_a09_", new NpgsqlConnectionStringBuilder(connection).Database);
+            PostgreSqlTestDatabase.RequireCurrentRunDatabase(new NpgsqlConnectionStringBuilder(connection).Database);
             var id = Guid.Parse(Environment.GetEnvironmentVariable("FLOWPLANE_TEST_HOSTED_CRASH_PROVIDER")!);
             var refresh = Guid.Parse(Environment.GetEnvironmentVariable("FLOWPLANE_TEST_HOSTED_CRASH_REFRESH")!);
             await using var services = PostgreSqlTestDatabase.CreateServicesForConnection(connection, null, Configure);
@@ -61,6 +61,7 @@ public sealed class HostedDiscoveryProcessRecoveryTests
             start.ArgumentList.Add(typeof(HostedDiscoveryProcessRecoveryTests).Assembly.Location);
             start.ArgumentList.Add("--TestCaseFilter:FullyQualifiedName~SIGKILL_recovery_preserves_accepted_intent");
             start.Environment["FLOWPLANE_TEST_POSTGRES_CONNECTION_STRING"] = database.ConnectionString;
+            start.Environment["FLOWPLANE_TEST_AGENT_RUN_ID"] = PostgreSqlTestDatabase.InvocationId;
             start.Environment["FLOWPLANE_TEST_HOSTED_CRASH_PHASE"] = phase;
             start.Environment["FLOWPLANE_TEST_HOSTED_CRASH_PROVIDER"] = id.ToString();
             start.Environment["FLOWPLANE_TEST_HOSTED_CRASH_REFRESH"] = refresh.ToString();

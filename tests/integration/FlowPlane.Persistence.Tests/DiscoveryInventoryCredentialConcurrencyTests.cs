@@ -55,7 +55,7 @@ public sealed class DiscoveryInventoryCredentialConcurrencyTests
             Assert.Equal(DiscoveryInventoryError.ContextChanged, error.Code);
             await refresh.AbortAsync(error.Code, token);
             Assert.Null((await probe.DiscoveryStates.AsNoTracking().SingleAsync(token)).CurrentGenerationId);
-            Assert.Equal(directManagedReplacement ? 1 : 2, (await probe.ProviderInstances.AsNoTracking().SingleAsync(token)).Version);
+            Assert.Equal(2, (await probe.ProviderInstances.AsNoTracking().SingleAsync(token)).Version);
 
             async Task WaitForLocks(int minimum)
             {

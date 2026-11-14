@@ -264,6 +264,11 @@ class VerifierSafetyTests(unittest.TestCase):
         self.assertNotEqual(state["project"], "flowplane")
         self.assertEqual(state["volume"], {})
 
+    def test_agent_migration_approval_is_required_before_creating_resources(self):
+        result, state = self.invoke(extra={"FLOWPLANE_TEST_AGENT_MIGRATION_APPROVED": "false"})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(state["calls"], [])
+
     def invoke(self, case="success", extra=None):
         with tempfile.TemporaryDirectory(prefix="a09-safety-test-") as directory:
             d = Path(directory)
@@ -277,6 +282,7 @@ class VerifierSafetyTests(unittest.TestCase):
                 launcher.chmod(0o700)
             env = {k: v for k, v in os.environ.items() if not k.startswith(("FLOWPLANE_", "FlowPlane__", "ConnectionStrings__", "COMPOSE_"))}
             env.update(PATH=str(bin_dir) + os.pathsep + env["PATH"], A09_FAKE_STATE=str(state_path), TMPDIR=directory)
+            env["FLOWPLANE_TEST_AGENT_MIGRATION_APPROVED"] = "true" # Mock-only authority; never a real database.
             env.update(extra or {})
             completed = subprocess.run(["sh", str(SCRIPT)], env=env, cwd=ROOT, capture_output=True, text=True, timeout=30)
             state = json.loads(state_path.read_text())

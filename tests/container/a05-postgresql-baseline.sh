@@ -2,6 +2,11 @@
 
 set -eu
 
+if [ "${FLOWPLANE_TEST_AGENT_MIGRATION_APPROVED:-}" != true ]; then
+  echo 'F3 requires separate isolated migration approval; no resources created.' >&2
+  exit 1
+fi
+
 repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 compose_file="$repository_root/deploy/compose/compose.yaml"
 project_name="flowplane-a05-verification-$$"
@@ -111,7 +116,12 @@ public_tables=$(compose exec -T postgres psql \
   --username "$FLOWPLANE_POSTGRES_USER" \
   --dbname "$FLOWPLANE_POSTGRES_DB" \
   --command "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;")
-expected_public_tables='DataProtectionKeys
+expected_public_tables='AgentCredentials
+AgentEnrollmentGrants
+AgentProviderAssignments
+AgentSecurityEvents
+Agents
+DataProtectionKeys
 FlowPlaneSecrets
 ProviderDiscoveryGenerations
 ProviderDiscoveryObservations
@@ -126,7 +136,7 @@ migration_count=$(compose exec -T postgres psql \
   --username "$FLOWPLANE_POSTGRES_USER" \
   --dbname "$FLOWPLANE_POSTGRES_DB" \
   --command 'SELECT count(*) FROM "__EFMigrationsHistory";')
-test "$migration_count" = 4
+test "$migration_count" = 5
 
 compose up --build --detach --wait --wait-timeout 240 nginx
 
@@ -171,7 +181,7 @@ persisted_migration_count=$(compose exec -T postgres psql \
   --username "$FLOWPLANE_POSTGRES_USER" \
   --dbname "$FLOWPLANE_POSTGRES_DB" \
   --command 'SELECT count(*) FROM "__EFMigrationsHistory";')
-test "$persisted_migration_count" = 4
+test "$persisted_migration_count" = 5
 
 compose logs --no-color backend >"$log_file"
 if grep -Fq "$FLOWPLANE_POSTGRES_PASSWORD" "$log_file"; then

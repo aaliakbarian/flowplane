@@ -18,7 +18,7 @@ public sealed class DiscoveryInventoryProcessRecoveryTests
         {
             var connection = Environment.GetEnvironmentVariable("FLOWPLANE_TEST_POSTGRES_CONNECTION_STRING")!;
             var builder = new NpgsqlConnectionStringBuilder(connection);
-            Assert.StartsWith("flowplane_a09_", builder.Database);
+            PostgreSqlTestDatabase.RequireCurrentRunDatabase(builder.Database);
             await using var childServices = PostgreSqlTestDatabase.CreateServicesForConnection(connection, null);
             await using var childScope = childServices.CreateAsyncScope();
             await using var staging = await childScope.ServiceProvider.GetRequiredService<IProviderDiscoveryInventoryStore>()
@@ -42,6 +42,7 @@ public sealed class DiscoveryInventoryProcessRecoveryTests
         start.ArgumentList.Add(typeof(DiscoveryInventoryProcessRecoveryTests).Assembly.Location);
         start.ArgumentList.Add("--TestCaseFilter:FullyQualifiedName~Killed_staging_process_preserves_previous_inventory_and_is_fenced_after_restart");
         start.Environment["FLOWPLANE_TEST_POSTGRES_CONNECTION_STRING"] = database.ConnectionString;
+        start.Environment["FLOWPLANE_TEST_AGENT_RUN_ID"] = PostgreSqlTestDatabase.InvocationId;
         start.Environment["FLOWPLANE_TEST_INVENTORY_CRASH_PROVIDER"] = id.ToString();
         using var child = Process.Start(start)!;
         // Drain diagnostics without printing child environment, credentials or SQL.

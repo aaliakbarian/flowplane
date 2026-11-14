@@ -5,6 +5,8 @@ using FlowPlane.Application.Providers;
 using FlowPlane.Application.Providers.DiscoveryInventory;
 using FlowPlane.Application.Providers.DiscoveryHosting;
 using FlowPlane.Application.Secrets;
+using FlowPlane.Application.Agents;
+using FlowPlane.Infrastructure.Persistence.Agents;
 using FlowPlane.Infrastructure.Persistence;
 using FlowPlane.Infrastructure.Persistence.Discovery;
 using FlowPlane.Infrastructure.Secrets;
@@ -39,6 +41,8 @@ public static class DependencyInjection
         services.AddScoped<ProviderDiscoveryRefreshService>();
         services.AddSingleton(new DiscoveryHostingOptions());
         services.AddScoped<IHostedDiscoveryStore, HostedDiscoveryStore>();
+        services.AddScoped<IAgentDatabase, AgentDatabase>();
+        services.AddScoped<IAgentControlStore, AgentControlStore>();
 
         services
             .AddHealthChecks()
