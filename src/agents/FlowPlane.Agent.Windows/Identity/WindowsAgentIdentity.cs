@@ -4,6 +4,7 @@ using System.Text;
 
 using FlowPlane.Agent.Windows.Security;
 using FlowPlane.Agent.Runtime.Security;
+using FlowPlane.Agent.Runtime.Control;
 
 namespace FlowPlane.Agent.Windows.Identity;
 
@@ -38,7 +39,7 @@ public sealed class WindowsAgentIdentity(string directory) : IWindowsAgentIdenti
             if (explicitInstall && File.Exists(IdentityFile)) throw new AgentWindowsException();
             return ValueTask.FromResult(File.Exists(IdentityFile) ? Load() : explicitInstall ? Create() : throw new AgentWindowsException());
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or CryptographicException or SystemException && exception is not OperationCanceledException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or CryptographicException or AgentControlException or SystemException && exception is not OperationCanceledException)
         { throw new AgentWindowsException(); }
     }
 
@@ -80,9 +81,28 @@ public sealed class WindowsAgentIdentity(string directory) : IWindowsAgentIdenti
 
     private WindowsAgentCertificate Load()
     {
-        var facts = ReadPublic(directory);
+        var facts = ReadRecord(directory);
+        var controlPath = Path.Combine(directory, "control.state");
+        if (File.Exists(controlPath) || File.Exists(controlPath + ".expected"))
+        {
+            using var control = AgentControlStore.Open(controlPath, facts.InstallationId);
+            if (control.State.Replacement is { } replacement &&
+                (control.State.Enrollment?.StatusReceipt?.Stage != FlowPlane.Agent.Protocol.PairingStage.Redeemed ||
+                 replacement.PinSha256 == control.State.Enrollment.PinSha256))
+                facts = new WindowsAgentRotationIdentity(directory).SelectEnrollment(facts, control.State, identityLocked: true);
+            else if (control.State.Enrollment is { } enrollment && enrollment.PinSha256 != Convert.ToHexStringLower(SHA256.HashData(facts.Der)))
+            {
+                new WindowsAgentRotationIdentity(directory).Promote(control.State, identityLocked: true);
+                facts = ReadRecord(directory);
+            }
+        }
+        return LoadRecord(facts);
+    }
+
+    internal static WindowsAgentCertificate LoadRecord(AgentIdentityPublicRecord facts)
+    {
         if (!AgentCertificateProfile.IsValid(facts.Der, DateTimeOffset.UtcNow)) throw new AgentWindowsException();
-        using var key = CngKey.Open("FlowPlaneAgent-" + facts.Installation.ToString("D"), new(facts.Platform ? PlatformProvider : SoftwareProvider), CngKeyOpenOptions.MachineKey);
+        using var key = CngKey.Open("FlowPlaneAgent-" + facts.KeyId.ToString("D"), new(facts.Platform ? PlatformProvider : SoftwareProvider), CngKeyOpenOptions.MachineKey);
         if (!key.IsMachineKey || key.ExportPolicy != CngExportPolicies.None || key.KeyUsage != CngKeyUsages.Signing ||
             !WindowsAgentSecurity.IsExactKeyDescriptor(key.GetProperty("Security Descr", (CngPropertyOptions)4).GetValue(), WindowsAgentSecurity.ServiceSid))
             throw new AgentWindowsException();
@@ -98,23 +118,48 @@ public sealed class WindowsAgentIdentity(string directory) : IWindowsAgentIdenti
         var challenge = RandomNumberGenerator.GetBytes(32);
         if (!publicKey.VerifyData(challenge, rsa.SignData(challenge, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1), HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1))
             throw new AgentWindowsException();
-        return new(facts.Installation, certificate.CopyWithPrivateKey(rsa));
+        return new(facts.InstallationId, certificate.CopyWithPrivateKey(rsa));
     }
 
     public static (Guid Installation, bool Platform, byte[] Der) ReadPublic(string directory)
+    {
+        var record = ReadRecord(directory);
+        return (record.InstallationId, record.Platform, record.Der);
+    }
+
+    internal static AgentIdentityPublicRecord ReadRecord(string directory)
     {
         WindowsAgentSecurity.VerifyPrivateDirectory(directory);
         var path = Path.Combine(directory, "identity.public");
         WindowsAgentSecurity.RejectReparsePoints(path);
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        if (stream.Length is < 25 or > 16409) throw new AgentWindowsException();
-        using var reader = new BinaryReader(stream);
-        if (reader.ReadInt32() != 1) throw new AgentWindowsException();
-        var id = new Guid(reader.ReadBytes(16));
-        var platform = reader.ReadBoolean();
-        var length = reader.ReadInt32();
-        if (id == Guid.Empty || length is < 1 or > 16384 || stream.Length - stream.Position != length) throw new AgentWindowsException();
-        return (id, platform, reader.ReadBytes(length));
+        if (stream.Length is < 26 or > 16425) throw new AgentWindowsException();
+        var bytes = new byte[(int)stream.Length]; stream.ReadExactly(bytes);
+        return AgentIdentityPublicRecord.Decode(bytes);
+    }
+
+    internal static byte[] CreateRotationKey(Guid keyId, bool platform)
+    {
+        var provider = platform ? PlatformProvider : SoftwareProvider;
+        var name = "FlowPlaneAgent-" + keyId.ToString("D");
+        if (keyId == Guid.Empty || CngKey.Exists(name, new(provider), CngKeyOpenOptions.MachineKey)) throw new AgentWindowsException();
+        var parameters = new CngKeyCreationParameters
+        {
+            Provider = new(provider),
+            KeyCreationOptions = CngKeyCreationOptions.MachineKey,
+            ExportPolicy = CngExportPolicies.None,
+            KeyUsage = CngKeyUsages.Signing,
+        };
+        parameters.Parameters.Add(new CngProperty("Length", BitConverter.GetBytes(3072), CngPropertyOptions.None));
+        parameters.Parameters.Add(new CngProperty("Security Descr", WindowsAgentSecurity.KeyDescriptor(WindowsAgentSecurity.ServiceSid), (CngPropertyOptions)4));
+        using var key = CngKey.Create(CngAlgorithm.Rsa, name, parameters);
+        using var rsa = new RSACng(key);
+        var request = new CertificateRequest("CN=FlowPlane Agent", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
+        request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature, true));
+        request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection { new("1.3.6.1.5.5.7.3.2") }, true));
+        using var certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddDays(90));
+        return certificate.Export(X509ContentType.Cert);
     }
 
     private static bool PlatformAvailable()

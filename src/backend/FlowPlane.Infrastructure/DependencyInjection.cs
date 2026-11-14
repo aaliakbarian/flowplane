@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.AddScoped<IHostedDiscoveryStore, HostedDiscoveryStore>();
         services.AddScoped<IAgentDatabase, AgentDatabase>();
         services.AddScoped<IAgentControlStore, AgentControlStore>();
+        services.AddScoped<IAgentControlReader, AgentControlReader>();
 
         services
             .AddHealthChecks()

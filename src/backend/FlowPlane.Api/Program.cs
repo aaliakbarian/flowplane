@@ -2,6 +2,7 @@ using System.Security.Claims;
 
 using FlowPlane.Api.Authentication;
 using FlowPlane.Api.Providers;
+using FlowPlane.Api.Agents;
 using FlowPlane.Application.Providers.DiscoveryInventory;
 using FlowPlane.Application.Providers.DiscoveryHosting;
 using FlowPlane.Infrastructure;
@@ -25,6 +26,7 @@ builder.Logging.AddJsonConsole(options =>
 builder.Services.AddFlowPlanePostgreSql(builder.Configuration);
 builder.Services.AddFlowPlaneAuthentication(builder.Configuration, builder.Environment);
 builder.Services.AddProviderApi(builder.Configuration);
+builder.AddAgentControl();
 builder.Services.AddSingleton(provider =>
 {
     var options = provider.GetRequiredService<IConfiguration>().GetSection(DiscoveryHostingOptions.SectionName)
@@ -66,6 +68,7 @@ app.UseStatusCodePages(async context =>
     context.HttpContext.Response.Headers.CacheControl = "no-store";
     await ProviderApi.Problem(context.HttpContext.Response.StatusCode, "HttpRequestRejected").ExecuteAsync(context.HttpContext);
 });
+app.UseAgentControlBoundary();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -84,6 +87,7 @@ app.MapGet("/me", (ClaimsPrincipal user) => Results.Ok(new
 })).RequireAuthorization();
 
 app.MapProviderApi();
+app.MapAgentControl();
 
 app.Run();
 

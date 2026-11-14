@@ -8,6 +8,27 @@ const renderWorkspace = () => render(<ProviderWorkspace token="synthetic-token" 
 afterEach(() => { vi.unstubAllGlobals(); sessionStorage.clear() })
 
 describe('provider workspace', () => {
+  it('offers pairing only within the selected provider and clears its code immediately on a provider switch', async () => {
+    const id = '018f8f55-82e7-734b-ab9a-a2d355bc9f6d'
+    const selected = { ...provider, id }
+    const canary = 'synthetic-pairing-canary'
+    vi.stubGlobal('location', { protocol: 'https:' })
+    vi.stubGlobal('fetch', vi.fn(async (path: string, init: RequestInit = {}) => {
+      if (path === '/api/agents/pairing-grants') {
+        expect(JSON.parse(String(init.body))).toMatchObject({ providerInstanceId: id, providerVersion: '9007199254740993' })
+        return new Response(JSON.stringify({ grantId: '06acae15-1f30-4443-ae9c-124b2d4874e8', agentId: '529a2346-c686-421c-89c1-6f1dc996e545', providerInstanceId: id, stage: 'Issued', version: '1', expiresAtUtc: new Date(Date.now() + 600000).toISOString(), pairingCode: canary }), { headers: { ETag: '"1"' } })
+      }
+      return path.endsWith('/p2') ? new Promise<Response>(() => {}) : json(path.endsWith(`/${id}`) ? selected : [selected, { ...provider, id: 'p2', displayName: 'Second' }])
+    }))
+    renderWorkspace()
+    expect(screen.queryByRole('button', { name: 'Request pairing code' })).not.toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: 'SSIS test' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Request pairing code' }))
+    await screen.findByLabelText('One-time pairing code')
+    expect(JSON.stringify(Object.values(sessionStorage)).includes(canary)).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Second' }))
+    expect(screen.queryByLabelText('One-time pairing code')).not.toBeInTheDocument()
+  })
   it('does not expose administration controls while operator authorization is unresolved', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
     renderWorkspace()

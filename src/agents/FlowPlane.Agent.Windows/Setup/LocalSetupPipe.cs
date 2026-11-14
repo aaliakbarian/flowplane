@@ -33,7 +33,7 @@ public sealed class LocalSetupPipe : ILocalSetupChannel
                 authorized = identity is not null && (identity.IsSystem || new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator));
             });
             var receipt = authorized ? await handle(LocalSetupCodec.Decode(body), token) : new(Schema, LocalSetupStatus.Denied);
-            await WriteFrame(pipe, JsonSerializer.SerializeToUtf8Bytes(receipt), token);
+            await WriteFrame(pipe, LocalSetupCodec.EncodeReceipt(receipt), token);
         }
         finally { if (body is not null) CryptographicOperations.ZeroMemory(body); }
     }, cancellationToken);
@@ -57,12 +57,9 @@ public sealed class LocalSetupPipe : ILocalSetupChannel
             VerifyServer(pipe);
             await WriteFrame(pipe, bytes, deadline.Token);
             var reply = await ReadFrame(pipe, deadline.Token);
-            using var document = JsonDocument.Parse(reply);
-            var root = document.RootElement;
-            if (root.GetProperty("Schema").GetString() != Schema || !root.GetProperty("Status").TryGetInt32(out var status) ||
-                !Enum.IsDefined((LocalSetupStatus)status)) throw new LocalSetupException();
+            var receipt = LocalSetupCodec.DecodeReceipt(reply);
             await LocalSetupConnectionLoop.AcknowledgeReceiptAsync(pipe, deadline.Token);
-            return new(Schema, (LocalSetupStatus)status);
+            return receipt;
         }
         catch (Exception exception) when (exception is IOException or JsonException or KeyNotFoundException or UnauthorizedAccessException or OperationCanceledException)
         {

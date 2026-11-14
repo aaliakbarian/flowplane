@@ -82,6 +82,8 @@ public static class AgentProtocolCodec
         _ when type == typeof(AgentSessionReceipt) => "flowplane.agent/session-receipt.v1",
         _ when type == typeof(AgentPollRequest) => "flowplane.agent/poll.v1",
         _ when type == typeof(AgentPollReceipt) => "flowplane.agent/poll-receipt.v1",
+        _ when type == typeof(AgentRotationRequest) => "flowplane.agent/rotation.v1",
+        _ when type == typeof(AgentAssignmentsReceipt) => "flowplane.agent/assignments.v1",
         _ when type == typeof(AgentOperationAcknowledgement) => "flowplane.agent/operation-acknowledgement.v1",
         _ => throw new AgentProtocolException(),
     };
@@ -107,6 +109,11 @@ public static class AgentProtocolCodec
                 Enum.IsDefined(m.Availability) && Enum.IsDefined(m.Readiness) && m.UnresolvedEvidenceCount >= 0,
             AgentPollReceipt m => m.Schema == schema && Id(m.SessionId) && m.Fence > 0 && m.Sequence > 0 &&
                 Lease(m.AcknowledgedAtUtc, m.LeaseExpiresAtUtc) && m.NextPollSeconds is >= 1 and <= 15 && m.Work == AgentWorkKind.None,
+            AgentRotationRequest m => m.Schema == schema && Id(m.ProviderInstanceId) && m.ProviderVersion > 0 &&
+                Id(m.RequestId) && Id(m.ClaimId) && CertificateBytes(m.PublicCertificateDerBase64),
+            AgentAssignmentsReceipt m => m.Schema == schema && Id(m.AgentId) && m.Providers is { Length: >= 1 and <= 32 } &&
+                m.Providers.All(provider => provider is not null && Id(provider.ProviderInstanceId) && provider.ProviderVersion > 0) &&
+                m.Providers.Select(provider => provider.ProviderInstanceId).Distinct().Count() == m.Providers.Length,
             AgentOperationAcknowledgement m => m.Schema == schema && ValidOperation(m.Operation) && Enum.IsDefined(m.Phase) &&
                 Id(m.ReceiptId) && Utc(m.RecordedAtUtc),
             _ => false,

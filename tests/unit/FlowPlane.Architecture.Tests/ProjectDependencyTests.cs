@@ -30,6 +30,7 @@ public sealed class ProjectDependencyTests
                 "FlowPlane.Domain",
                 "FlowPlane.Infrastructure",
                 "FlowPlane.Providers.Ssis",
+                "FlowPlane.Agent.Protocol",
             ]
         },
     };

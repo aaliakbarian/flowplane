@@ -4,6 +4,8 @@ import { ProviderForm } from './ProviderForm'
 import { ProviderValidation } from './ProviderValidation'
 import { DiscoveryRefresh } from './DiscoveryRefresh'
 import { InventoryBrowser } from './InventoryBrowser'
+import { AgentApi } from '../agents/api'
+import { AgentPairing } from '../agents/AgentPairing'
 import './providers.css'
 
 export function ProviderWorkspace({ token, subject, onUnauthorized }: { token: string; subject: string; onUnauthorized(): void }) {
@@ -40,10 +42,10 @@ export function ProviderWorkspace({ token, subject, onUnauthorized }: { token: s
       {rows.length === 50 && <button onClick={() => { setSelection(null); setOffset(offset + 50) }}>More providers</button>}
     </nav>
     {selection === 'new' && <ProviderForm key="new" api={api} onFailure={failure} onSaved={(id) => { setSelection(id); setReload(reload + 1) }} />}
-    {selection && selection !== 'new' && <SelectedProvider key={`${subject}:${selection}`} id={selection} api={api} subject={subject} onFailure={failure} />}
+    {selection && selection !== 'new' && <SelectedProvider key={`${subject}:${selection}`} id={selection} api={api} token={token} subject={subject} onFailure={failure} />}
   </section>
 }
-function SelectedProvider({ id, api, subject, onFailure }: { id: string; api: ProviderApi; subject: string; onFailure(error: unknown): void }) {
+function SelectedProvider({ id, api, token, subject, onFailure }: { id: string; api: ProviderApi; token: string; subject: string; onFailure(error: unknown): void }) {
   const [value, setValue] = useState<{ data: Provider; etag: string } | null>(null)
   const [reload, setReload] = useState(0)
   const [error, setError] = useState('')
@@ -54,14 +56,16 @@ function SelectedProvider({ id, api, subject, onFailure }: { id: string; api: Pr
   }, [api, id, reload, onFailure])
   if (error) return <p role="alert">{error}</p>
   if (!value) return <p role="status">Loading provider…</p>
-  return <ProviderPanel key={value.etag} api={api} provider={value.data} etag={value.etag} subject={subject} onFailure={onFailure} onSaved={() => setReload(reload + 1)} />
+  return <ProviderPanel key={value.etag} api={api} token={token} provider={value.data} etag={value.etag} subject={subject} onFailure={onFailure} onSaved={() => setReload(reload + 1)} />
 }
-function ProviderPanel({ api, provider, etag, subject, onFailure, onSaved }: { api: ProviderApi; provider: Provider; etag: string; subject: string; onFailure(error: unknown): void; onSaved(): void }) {
+function ProviderPanel({ api, token, provider, etag, subject, onFailure, onSaved }: { api: ProviderApi; token: string; provider: Provider; etag: string; subject: string; onFailure(error: unknown): void; onSaved(): void }) {
+  const agentApi = useMemo(() => new AgentApi(token), [token])
   const [inventoryEpoch, setInventoryEpoch] = useState(0)
   const invalidate = useCallback(() => setInventoryEpoch((epoch) => epoch + 1), [])
   return <article><h2>{provider.displayName}</h2>
     <ProviderForm api={api} provider={provider} etag={etag} onSaved={onSaved} onFailure={onFailure} />
     <ProviderValidation api={api} id={provider.id} onFailure={onFailure} />
+    <AgentPairing api={agentApi} providerId={provider.id} providerVersion={etag.slice(1, -1)} displayName={provider.displayName} onFailure={onFailure} />
     <DiscoveryRefresh api={api} id={provider.id} etag={etag} subject={subject} onFailure={onFailure} onInvalidate={invalidate} />
     <InventoryBrowser key={inventoryEpoch} api={api} id={provider.id} onFailure={onFailure} />
   </article>
