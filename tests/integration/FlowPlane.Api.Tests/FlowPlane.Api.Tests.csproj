@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../FlowPlane.Agent.IntegrationHost/FlowPlane.Agent.IntegrationHost.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="../../../src/agents/FlowPlane.Agent.Runtime/FlowPlane.Agent.Runtime.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.13" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />

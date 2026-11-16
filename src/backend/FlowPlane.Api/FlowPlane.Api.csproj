@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="FlowPlane.Api.Tests" />
+    <InternalsVisibleTo Include="FlowPlane.Agent.IntegrationHost" />
     <ProjectReference Include="../../agents/FlowPlane.Agent.Protocol/FlowPlane.Agent.Protocol.csproj" />
     <ProjectReference Include="../FlowPlane.Infrastructure/FlowPlane.Infrastructure.csproj" />
     <ProjectReference Include="../FlowPlane.Providers.Ssis/FlowPlane.Providers.Ssis.csproj" />

@@ -20,7 +20,7 @@ internal sealed class AgentControlService(IAgentControlStore store, IAgentContro
     internal async Task ProviderAsync(Guid id, long? expectedVersion, CancellationToken token)
     {
         var provider = await providers.FindAsync(id, token);
-        if (provider is null || !provider.IsEnabled || provider.ProviderType != SsisProviderConfigurationCodec.SsisProviderType)
+        if (provider is null || !provider.IsEnabled || !provider.ProviderType.Equals(SsisProviderConfigurationCodec.SsisProviderType))
             throw new AgentStoreException(AgentStoreError.NotFound);
         if (expectedVersion is { } version && provider.Version != version) throw new AgentStoreException(AgentStoreError.ContextChanged);
         SsisProviderConfiguration configuration;

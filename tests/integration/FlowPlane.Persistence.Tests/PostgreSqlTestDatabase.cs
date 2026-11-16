@@ -18,6 +18,12 @@ internal sealed record TestDatabaseIdentity(string Name, long Oid, string Owner,
 
 internal sealed class PostgreSqlTestDatabase : IAsyncDisposable
 {
+    internal static Task DropVerifiedAsync(TestDatabaseIdentity expected, TestDatabaseIdentity? actual, Func<Task> drop)
+    {
+        VerifyCleanupIdentity(expected, actual);
+        return drop();
+    }
+
     internal static void VerifyCleanupIdentity(TestDatabaseIdentity expected, TestDatabaseIdentity? actual)
     {
         if (!Regex.IsMatch(expected.Name, "^flowplane_agent_[a-f0-9]{12}_[a-f0-9]{32}$") || expected.Oid <= 0 ||
@@ -51,6 +57,7 @@ internal sealed class PostgreSqlTestDatabase : IAsyncDisposable
     public string DatabaseName { get; }
 
     public string ConnectionString { get; }
+    internal TestDatabaseIdentity Identity => identity;
 
     public static async Task<PostgreSqlTestDatabase?> CreateAsync(CancellationToken cancellationToken)
     {
@@ -160,12 +167,13 @@ internal sealed class PostgreSqlTestDatabase : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        VerifyCleanupIdentity(identity, await ReadIdentity(adminConnection, DatabaseName, CancellationToken.None));
-        RecordEvidence("cleanup-verified", []);
-        await using var command = adminConnection.CreateCommand();
-        command.CommandText =
-            $"DROP DATABASE {new NpgsqlCommandBuilder().QuoteIdentifier(DatabaseName)}";
-        await command.ExecuteNonQueryAsync();
+        await DropVerifiedAsync(identity, await ReadIdentity(adminConnection, DatabaseName, CancellationToken.None), async () =>
+        {
+            RecordEvidence("cleanup-verified", []);
+            await using var command = adminConnection.CreateCommand();
+            command.CommandText = $"DROP DATABASE {new NpgsqlCommandBuilder().QuoteIdentifier(DatabaseName)}";
+            await command.ExecuteNonQueryAsync();
+        });
         if (await ReadIdentity(adminConnection, DatabaseName, CancellationToken.None) is not null)
             throw new InvalidOperationException("Isolated database cleanup could not be verified.");
         RecordEvidence("removed", []);

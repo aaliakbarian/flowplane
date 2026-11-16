@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="../../../src/backend/FlowPlane.Api/FlowPlane.Api.csproj" />
+  </ItemGroup>
+</Project>
